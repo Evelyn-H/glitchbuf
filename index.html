@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>glitchbuf</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="controls">
+    <input type="file" id="file" accept="image/*">
+    <textarea id="code" spellcheck="false">select 0.2 0.3 (echo 3 -6)
+bitcrush 4
+noise 5</textarea>
+    <div class="buttons">
+      <button id="run">Run</button>
+      <button id="download">Download PNG</button>
+    </div>
+    <pre id="error"></pre>
+  </div>
+  <div id="canvas-pane">
+    <canvas id="canvas"></canvas>
+  </div>
+  <script src="dist/glitchbuf.js"></script>
+</body>
+</html>
