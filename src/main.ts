@@ -14,6 +14,19 @@ const errorPre = document.getElementById('error') as HTMLPreElement;
 const canvas = document.getElementById('canvas') as HTMLCanvasElement;
 const ctx = canvas.getContext('2d')!;
 const loadingEl = document.getElementById('loading') as HTMLDivElement;
+const canvasPaneEl = document.getElementById('canvas-pane') as HTMLDivElement;
+
+function fitCanvas(): void {
+  if (!canvas.width || !canvas.height) return;
+  const s = getComputedStyle(canvasPaneEl);
+  const pw = canvasPaneEl.clientWidth  - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight);
+  const ph = canvasPaneEl.clientHeight - parseFloat(s.paddingTop)  - parseFloat(s.paddingBottom);
+  const scale = Math.min(pw / canvas.width, ph / canvas.height);
+  canvas.style.width  = Math.round(canvas.width  * scale) + 'px';
+  canvas.style.height = Math.round(canvas.height * scale) + 'px';
+}
+
+new ResizeObserver(fitCanvas).observe(canvasPaneEl);
 
 function randomSeed(): number {
   return Math.floor(Math.random() * 0x100000000);
@@ -44,6 +57,8 @@ async function runImage(immediate = false): Promise<void> {
     canvas.width = image.width;
     canvas.height = image.height;
     ctx.putImageData(new ImageData(rgba, image.width, image.height), 0, 0);
+    canvasPaneEl.classList.add('has-image');
+    fitCanvas();
     if (errorTimer !== null) { clearTimeout(errorTimer); errorTimer = null; }
     errorPre.textContent = '';
   } catch (e) {
@@ -110,6 +125,7 @@ fileInput.addEventListener('change', () => {
       const imageData = ctx.getImageData(0, 0, imgWidth, imgHeight);
       originalBuffer = rgbaToGlitch(imageData.data, imgWidth, imgHeight);
       errorPre.textContent = '';
+      runImage(true);
     };
     img.src = reader.result as string;
   };

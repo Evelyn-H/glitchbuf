@@ -7,24 +7,34 @@
 </head>
 <body>
   <div id="controls">
-    <input type="file" id="file" accept="image/*">
-    <div class="seed-row">
-      <label for="seed">Seed</label>
-      <input type="text" id="seed" spellcheck="false">
-      <button id="new-seed">New</button>
+    <div class="field">
+      <label for="file">input image</label>
+      <input type="file" id="file" accept="image/*">
     </div>
-    <textarea id="code" spellcheck="false">select 0.2 0.3 (echo 0.25 -6)
+    <div class="field seed-row">
+      <label for="seed">seed</label>
+      <input type="text" id="seed" spellcheck="false">
+      <button id="new-seed">randomise</button>
+    </div>
+    <div class="field script-field">
+      <label for="code">script</label>
+      <textarea id="code" spellcheck="false">select 0.2 0.3 (echo 0.25 -6)
 bitcrush 4
 noise -30</textarea>
+    </div>
     <div class="buttons">
-      <button id="run">Run</button>
-      <button id="download">Download PNG</button>
+      <button id="run">run</button>
+      <button id="download">download png</button>
     </div>
     <pre id="error"></pre>
   </div>
   <div id="canvas-pane">
+    <div id="no-image">no image loaded</div>
     <div id="loading">rendering…</div>
-    <canvas id="canvas"></canvas>
+    <div id="canvas-wrap">
+      <span id="preview-label">preview</span>
+      <canvas id="canvas"></canvas>
+    </div>
   </div>
   <script src="https://unpkg.com/tone/build/Tone.js"></script>
   <script src="dist/glitchbuf.js"></script>
