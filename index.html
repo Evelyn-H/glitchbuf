@@ -16,6 +16,14 @@
       <input type="text" id="seed" spellcheck="false">
       <button id="new-seed">randomise</button>
     </div>
+    <div id="canvas-pane">
+      <div id="no-image">no image loaded</div>
+      <div id="loading">rendering…</div>
+      <div id="canvas-wrap">
+        <span id="preview-label">preview</span>
+        <canvas id="canvas"></canvas>
+      </div>
+    </div>
     <div class="field script-field">
       <label for="code">script</label>
       <textarea id="code" spellcheck="false">select 0.2 0.3 (echo 0.25 -6)
@@ -27,14 +35,6 @@ noise -30</textarea>
       <button id="download">download png</button>
     </div>
     <pre id="error"></pre>
-  </div>
-  <div id="canvas-pane">
-    <div id="no-image">no image loaded</div>
-    <div id="loading">rendering…</div>
-    <div id="canvas-wrap">
-      <span id="preview-label">preview</span>
-      <canvas id="canvas"></canvas>
-    </div>
   </div>
   <script src="https://unpkg.com/tone/build/Tone.js"></script>
   <script src="dist/glitchbuf.js"></script>

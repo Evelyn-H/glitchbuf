@@ -1,21 +1,26 @@
 :root {
   --sp: 16px;
-  --bg:       #1e1e1e;
+  --bg: #1e1e1e;
   --bg-input: #252525;
-  --fg:       #d0d0d0;
-  --fg-dim:   #888;
-  --border:   #3c3c3c;
-  --btn-bg:   #2a2a2a;
-  --btn-hover:#333;
-  --error:    #ff7070;
-  --font:     ui-monospace, monospace;
-  --font-size:13px;
+  --fg: #d0d0d0;
+  --fg-dim: #888;
+  --border: #3c3c3c;
+  --btn-bg: #2a2a2a;
+  --btn-hover: #333;
+  --error: #ff7070;
+  --font: ui-monospace, monospace;
+  --font-size: 13px;
   --label-size: 11px;
 }
 
-*, *::before, *::after { box-sizing: border-box; }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
 
-html, body {
+html,
+body {
   margin: 0;
   height: 100%;
 }
@@ -32,8 +37,9 @@ body {
 
 #controls {
   flex: 1;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto 1fr auto auto;
   gap: var(--sp);
   overflow-y: auto;
   min-width: 0;
@@ -42,7 +48,9 @@ body {
 
 /* ── shared element styles ─────────────────────────────────────────────── */
 
-input, button, textarea {
+input,
+button,
+textarea {
   font-family: var(--font);
   font-size: var(--font-size);
   color: var(--fg);
@@ -56,7 +64,9 @@ button {
   line-height: 1.4;
 }
 
-input[type="text"] { background: var(--bg-input); }
+input[type="text"] {
+  background: var(--bg-input);
+}
 
 button {
   background: var(--btn-bg);
@@ -64,10 +74,14 @@ button {
   cursor: pointer;
 }
 
-button:hover { background: var(--btn-hover); }
+button:hover {
+  background: var(--btn-hover);
+}
 
 /* file selector */
-input[type="file"] { color: var(--fg-dim); }
+input[type="file"] {
+  color: var(--fg-dim);
+}
 
 input[type="file"]::file-selector-button {
   font-family: inherit;
@@ -82,7 +96,9 @@ input[type="file"]::file-selector-button {
   margin-right: 8px;
 }
 
-input[type="file"]::file-selector-button:hover { background: var(--btn-hover); }
+input[type="file"]::file-selector-button:hover {
+  background: var(--btn-hover);
+}
 
 #controls textarea {
   flex: 1;
@@ -96,7 +112,9 @@ input[type="file"]::file-selector-button:hover { background: var(--btn-hover); }
 
 /* ── focus ──────────────────────────────────────────────────────────────── */
 
-:focus-visible { outline: 1px solid var(--fg-dim); }
+:focus-visible {
+  outline: 1px solid var(--fg-dim);
+}
 
 /* ── layout pieces ─────────────────────────────────────────────────────── */
 
@@ -106,7 +124,7 @@ input[type="file"]::file-selector-button:hover { background: var(--btn-hover); }
   gap: 3px;
 }
 
-.field > label {
+.field>label {
   color: var(--fg-dim);
   font-size: var(--label-size);
 }
@@ -122,7 +140,9 @@ input[type="file"]::file-selector-button:hover { background: var(--btn-hover); }
   gap: 3px 6px;
 }
 
-.seed-row label { grid-column: 1 / -1; }
+.seed-row label {
+  grid-column: 1 / -1;
+}
 
 .buttons {
   display: flex;
@@ -136,7 +156,8 @@ input[type="file"]::file-selector-button:hover { background: var(--btn-hover); }
 }
 
 #canvas-pane {
-  flex: 1;
+  grid-column: 2;
+  grid-row: 1 / -1;
   position: relative;
   display: flex;
   align-items: center;
@@ -159,7 +180,9 @@ input[type="file"]::file-selector-button:hover { background: var(--btn-hover); }
   display: none;
 }
 
-#canvas-pane.has-image #preview-label { display: block; }
+#canvas-pane.has-image #preview-label {
+  display: block;
+}
 
 #no-image {
   display: flex;
@@ -171,7 +194,9 @@ input[type="file"]::file-selector-button:hover { background: var(--btn-hover); }
   inset: 0;
 }
 
-#canvas-pane.has-image #no-image { display: none; }
+#canvas-pane.has-image #no-image {
+  display: none;
+}
 
 #loading {
   display: none;
@@ -184,9 +209,35 @@ input[type="file"]::file-selector-button:hover { background: var(--btn-hover); }
   z-index: 1;
 }
 
-#loading.visible { display: flex; }
+#loading.visible {
+  display: flex;
+}
 
 #canvas {
   display: block;
   image-rendering: pixelated;
+}
+
+@media (max-width: 768px) {
+  body {
+    flex-direction: column;
+    height: auto;
+  }
+
+  #controls {
+    display: flex;
+    flex-direction: column;
+    overflow-y: visible;
+  }
+
+  #canvas-pane {
+    max-height: 50vh;
+    min-height: 256px;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  #controls textarea {
+    min-height: 150px;
+  }
 }
