@@ -88,7 +88,7 @@ function parseAll(src: string): GlitchVal[] {
       if (isBare) {
         const forms: GlitchVal[] = [];
         while (tokens.length > 0) forms.push(parseExpr(tokens));
-        if (forms.length > 0) result.push(forms.length === 1 ? forms[0] : forms);
+        if (forms.length > 0) result.push(forms);
       } else {
         result.push(parseExpr(tokens));
       }
@@ -165,6 +165,51 @@ async function evaluate(expr: GlitchVal, env: GlitchEnv, buf: BufCell): Promise<
     return buf.val;
   }
 
+  if (head === 'repeat') {
+    // (repeat n body) — evaluate body n times in sequence
+    const n = Math.floor(await evaluate(rest[0], env, buf) as number);
+    const body = rest[1];
+    for (let i = 0; i < n; i++) await evaluate(body, env, buf);
+    return buf.val;
+  }
+
+  if (head === 'channel') {
+    // (channel ch body) — apply body to a single RGB channel (r=0 g=1 b=2)
+    const ch = Math.floor(await evaluate(rest[0], env, buf) as number) % 3;
+    const body = rest[1];
+    const top = buf.val;
+    await top.channel(ch, async (sub) => {
+      buf.val = sub as IGlitchBuffer;
+      await evaluate(body, env, buf);
+    });
+    buf.val = top;
+    return buf.val;
+  }
+
+  if (head === 'stride') {
+    // (stride n body) — divide into n chunks, apply body to alternating ones (0, 2, 4…)
+    const n = Math.floor(await evaluate(rest[0], env, buf) as number);
+    const body = rest[1];
+    const top = buf.val;
+    for (let i = 0; i < n; i += 2) {
+      buf.val = top;
+      await top.select(i / n, (i + 1) / n, async (sub) => {
+        buf.val = sub as IGlitchBuffer;
+        await evaluate(body, env, buf);
+      });
+    }
+    buf.val = top;
+    return buf.val;
+  }
+
+  if (head === 'mix') {
+    // (mix wet body) — evaluate body, blend result with pre-body snapshot at wet ratio
+    const wet = await evaluate(rest[0], env, buf) as number;
+    const body = rest[1];
+    await buf.val.mix(wet, async () => { await evaluate(body, env, buf); });
+    return buf.val;
+  }
+
   if (head === 'do') {
     // (do form ...) — evaluate in sequence, return last
     let result: GlitchVal = null;
@@ -201,8 +246,17 @@ function makeGlitchEnv(buf: BufCell, rand: () => number): GlitchEnv {
   env.set('echo', (t: GlitchVal, g: GlitchVal): GlitchVal => buf.val.echo(t as number, g as number));
   env.set('copy', (s: GlitchVal, e: GlitchVal, t: GlitchVal): GlitchVal => buf.val.copy(s as number, e as number, t as number));
   env.set('tremolo', (r: GlitchVal, d: GlitchVal): GlitchVal => buf.val.tremolo(r as number, d as number));
-  env.set('distortion', (d: GlitchVal): GlitchVal => buf.val.distortion(d as number));
+  env.set('distort', (d: GlitchVal): GlitchVal => buf.val.distort(d as number));
   env.set('chorus', (r: GlitchVal, d: GlitchVal, w: GlitchVal): GlitchVal => buf.val.chorus(r as number, d as number, w as number));
+  env.set('pitchshift', (s: GlitchVal): Promise<GlitchVal> => buf.val.pitchShift(s as number));
+  env.set('invert', (): GlitchVal => buf.val.invert());
+  env.set('shuffle', (pct: GlitchVal): GlitchVal => buf.val.shuffle(pct as number));
+  env.set('quantize', (n: GlitchVal): GlitchVal => buf.val.quantize(n as number));
+  env.set('fold', (d: GlitchVal): GlitchVal => buf.val.fold(d as number));
+  env.set('solarize', (t: GlitchVal): GlitchVal => buf.val.solarize(t as number));
+
+  // channel constants
+  env.set('R', 0); env.set('G', 1); env.set('B', 2);
 
   // arithmetic
   env.set('+', (a: GlitchVal, b: GlitchVal) => (a as number) + (b as number));

@@ -14,8 +14,16 @@ interface IGlitchBuffer {
   select(startPct: number, endPct: number, fn: (sub: IGlitchBuffer) => Promise<void>): Promise<this>;
   copy(srcStart: number, srcEnd: number, dstStart: number): this;
   tremolo(rate: number, depth: number): this;
-  distortion(drive: number): this;
+  distort(drive: number): this;
   chorus(rate: number, depth: number, wet: number): this;
+  pitchShift(semitones: number): Promise<this>;
+  invert(): this;
+  shuffle(pct: number): this;
+  quantize(levels: number): this;
+  fold(drive: number): this;
+  solarize(threshold: number): this;
+  channel(ch: number, fn: (sub: IGlitchBuffer) => Promise<void>): Promise<this>;
+  mix(wet: number, fn: (buf: IGlitchBuffer) => Promise<void>): Promise<this>;
 }
 
 // ── Image conversion ────────────────────────────────────────────────────────
@@ -197,7 +205,7 @@ class GlitchBuffer implements IGlitchBuffer {
   }
 
   // Soft-clip via tanh. drive > 1 saturates; ~1 = clean, ~10 = heavy crunch.
-  distortion(drive: number): this {
+  distort(drive: number): this {
     for (let i = 0; i < this.data.length; i++) {
       const x = this.data[i] / 127.5 - 1;
       const val = (Math.tanh(x * drive) + 1) * 127.5;
@@ -221,6 +229,115 @@ class GlitchBuffer implements IGlitchBuffer {
       const r = (val + 0.5) | 0;
       this.data[i] = r < 0 ? 0 : r > 255 ? 255 : r;
     }
+    return this;
+  }
+
+  invert(): this {
+    for (let i = 0; i < this.data.length; i++) this.data[i] = 255 - this.data[i];
+    return this;
+  }
+
+  // pct: fraction of total pixels to swap (0–1). Swaps whole pixels (3 bytes each).
+  shuffle(pct: number): this {
+    const pixels = Math.floor(this.data.length / 3);
+    const swaps = Math.floor(pct * pixels);
+    for (let i = 0; i < swaps; i++) {
+      const a = Math.floor(this.rand() * pixels) * 3;
+      const b = Math.floor(this.rand() * pixels) * 3;
+      for (let c = 0; c < 3; c++) {
+        const tmp = this.data[a + c]; this.data[a + c] = this.data[b + c]; this.data[b + c] = tmp;
+      }
+    }
+    return this;
+  }
+
+  // Quantize to n discrete levels (evenly spaced across 0–255).
+  quantize(levels: number): this {
+    const n = Math.max(2, Math.floor(levels));
+    const step = 255 / (n - 1);
+    for (let i = 0; i < this.data.length; i++) {
+      this.data[i] = Math.round(Math.round(this.data[i] / step) * step);
+    }
+    return this;
+  }
+
+  // Wavefolder: reflects values at 0 and 255 boundaries drive times.
+  // drive ~1 = subtle, higher = more folds.
+  fold(drive: number): this {
+    for (let i = 0; i < this.data.length; i++) {
+      let v = (this.data[i] / 255) * drive; // scale up
+      // triangle wave fold: fold into [0, 1] repeatedly
+      v = v - Math.floor(v); // fractional part
+      if (v > 0.5) v = 1 - v;
+      this.data[i] = Math.round(v * 2 * 255);
+    }
+    return this;
+  }
+
+  // Solarize: invert bytes above threshold (0–1 fraction of 255).
+  solarize(threshold: number): this {
+    const t = Math.round(threshold * 255);
+    for (let i = 0; i < this.data.length; i++) {
+      if (this.data[i] > t) this.data[i] = 255 - this.data[i];
+    }
+    return this;
+  }
+
+  // Extract one RGB channel (0=R 1=G 2=B) into a contiguous sub-buffer,
+  // apply fn, then write back — same pattern as select.
+  async channel(ch: number, fn: (sub: GlitchBuffer) => Promise<void>): Promise<this> {
+    const stride = 3;
+    const count = Math.floor(this.data.length / stride);
+    const extracted = new Uint8Array(count);
+    for (let i = 0; i < count; i++) extracted[i] = this.data[i * stride + ch];
+    const sub = new GlitchBuffer(extracted, 0, 0, this.rand);
+    await fn(sub);
+    for (let i = 0; i < count; i++) this.data[i * stride + ch] = extracted[i];
+    return this;
+  }
+
+  // Snapshot → evaluate fn → blend result back at wet ratio.
+  async mix(wet: number, fn: (buf: GlitchBuffer) => Promise<void>): Promise<this> {
+    const snapshot = this.data.slice();
+    await fn(this);
+    const len = Math.min(snapshot.length, this.data.length);
+    for (let i = 0; i < len; i++) {
+      const val = snapshot[i] * (1 - wet) + this.data[i] * wet;
+      const r = (val + 0.5) | 0;
+      this.data[i] = r < 0 ? 0 : r > 255 ? 255 : r;
+    }
+    return this;
+  }
+
+  // Tone.js PitchShift — time-preserving pitch shift. semitones: e.g. -12 to 12.
+  async pitchShift(semitones: number): Promise<this> {
+    const sampleRate = 44100;
+    const len = this.data.length;
+    const duration = len / sampleRate;
+
+    // bytes [0,255] → floats [-1,1]
+    const samples = new Float32Array(len);
+    for (let i = 0; i < len; i++) samples[i] = this.data[i] / 127.5 - 1;
+
+    // Wrap in a standard AudioBuffer so Tone can consume it
+    const srcBuffer = new AudioBuffer({ numberOfChannels: 1, length: len, sampleRate });
+    srcBuffer.copyToChannel(samples, 0);
+
+    const rendered = await Tone.Offline(({ transport }: any) => {
+      const shift = new Tone.PitchShift(semitones).toDestination();
+      const player = new Tone.Player(new Tone.ToneAudioBuffer(srcBuffer));
+      player.connect(shift);
+      player.start(0);
+      transport.start(0);
+    }, duration + 0.5); // extra headroom for PitchShift lookahead
+
+    const out = rendered.getChannelData(0);
+    for (let i = 0; i < len; i++) {
+      const v = (out[i] + 1) * 127.5;
+      const r = (v + 0.5) | 0;
+      this.data[i] = r < 0 ? 0 : r > 255 ? 255 : r;
+    }
+
     return this;
   }
 }

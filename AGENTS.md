@@ -46,6 +46,8 @@ npm run build   # tsc → dist/glitchbuf.js (no bundler)
 - **`evaluate` is async** — all built-ins may return `Promise<GlitchVal>`. Sync ops just return values and `await` is a no-op on them.
 - **`GlitchBuffer` carries `width`/`height`** — needed by `rescale` and for any future 2D-aware ops.
 - **`reverb` uses a seeded IR** (from `this.rand`) via a raw `ConvolverNode` — avoids `Tone.Reverb`'s random IR which would make the pattern non-deterministic across runs.
+- **`shuffle` operates on whole pixels** (3-byte RGB units), not individual bytes. `pct` is the fraction of total pixels to swap (0–1).
+- **Zero-arg bare ops** (`invert`, `reverse`) work because `parseAll` always wraps bare-line forms in an array, which evaluates as an implicit call. A single bare symbol used to evaluate to a function reference — the fix was removing the `forms.length === 1` short-circuit.
 
 ## Layout
 
