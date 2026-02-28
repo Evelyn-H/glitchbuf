@@ -187,13 +187,15 @@ async function evaluate(expr: GlitchVal, env: GlitchEnv, buf: BufCell): Promise<
   }
 
   if (head === 'stride') {
-    // (stride n body) — divide into n chunks, apply body to alternating ones (0, 2, 4…)
-    const n = Math.floor(await evaluate(rest[0], env, buf) as number);
-    const body = rest[1];
+    // (stride len skip body) — apply body to chunks of len, skipping skip chunks between each
+    const chunkLen = await evaluate(rest[0], env, buf) as number;
+    const skip = Math.floor(await evaluate(rest[1], env, buf) as number);
+    const body = rest[2];
     const top = buf.val;
-    for (let i = 0; i < n; i += 2) {
+    const step = chunkLen * (skip + 1);
+    for (let pos = 0; pos < 1; pos += step) {
       buf.val = top;
-      await top.select(i / n, (i + 1) / n, async (sub) => {
+      await top.select(pos, Math.min(pos + chunkLen, 1), async (sub) => {
         buf.val = sub as IGlitchBuffer;
         await evaluate(body, env, buf);
       });
@@ -249,6 +251,7 @@ function makeGlitchEnv(buf: BufCell, rand: () => number): GlitchEnv {
   env.set('distort', (d: GlitchVal): GlitchVal => buf.val.distort(d as number));
   env.set('chorus', (r: GlitchVal, d: GlitchVal, w: GlitchVal): GlitchVal => buf.val.chorus(r as number, d as number, w as number));
   env.set('pitchshift', (s: GlitchVal): Promise<GlitchVal> => buf.val.pitchShift(s as number));
+  env.set('transpose', (ch: GlitchVal, dx: GlitchVal, dy: GlitchVal): GlitchVal => buf.val.transpose(ch as number, dx as number, dy as number));
   env.set('invert', (): GlitchVal => buf.val.invert());
   env.set('shuffle', (pct: GlitchVal): GlitchVal => buf.val.shuffle(pct as number));
   env.set('quantize', (n: GlitchVal): GlitchVal => buf.val.quantize(n as number));

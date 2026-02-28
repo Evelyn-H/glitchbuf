@@ -41,7 +41,7 @@ invert                 # invert every byte (255 - x)
 reverse                # reverse the byte stream
 copy s e dst           # copy slice [s,e) to dst          (all fractions 0–1)
 quantize n             # quantise to n discrete levels     (evenly spaced, any n)
-fold drive             # wavefold: reflect values at boundaries (drive ~1 = subtle, ~4 = chaotic)
+fold drive             # wavefold: reflect values at boundaries (drive ≤ 0.5 = subtle, ~1 = one fold, higher = chaotic)
 solarize threshold     # invert bytes above threshold      (threshold 0–1)
 ```
 
@@ -49,6 +49,7 @@ solarize threshold     # invert bytes above threshold      (threshold 0–1)
 
 ```
 shuffle pct            # randomly swap pct of pixels (seeded, whole RGB pixels, pct = 0–1)
+transpose ch dx dy     # shift one channel layer by dx/dy (fractions of width/height, wraps)
 rescale w h            # resize image to w×h pixels
 ```
 
@@ -56,7 +57,7 @@ rescale w h            # resize image to w×h pixels
 
 ```
 repeat n body          # apply body n times
-stride n body          # divide into n chunks, apply body to alternating ones (0, 2, 4…)
+stride len skip body   # apply body to chunks of len, skipping skip chunks between each (len = 0–1)
 channel ch body        # apply body to one RGB channel    (ch: R, G, or B)
 mix wet body           # blend body's result with original (wet = 0–1)
 select s e body        # apply body to sub-slice [s,e)    (fractions 0–1)

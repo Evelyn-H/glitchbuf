@@ -19,6 +19,7 @@ interface IGlitchBuffer {
   pitchShift(semitones: number): Promise<this>;
   invert(): this;
   shuffle(pct: number): this;
+  transpose(ch: number, dx: number, dy: number): this;
   quantize(levels: number): this;
   fold(drive: number): this;
   solarize(threshold: number): this;
@@ -208,9 +209,7 @@ class GlitchBuffer implements IGlitchBuffer {
   distort(drive: number): this {
     for (let i = 0; i < this.data.length; i++) {
       const x = this.data[i] / 127.5 - 1;
-      const val = (Math.tanh(x * drive) + 1) * 127.5;
-      const r = (val + 0.5) | 0;
-      this.data[i] = r < 0 ? 0 : r > 255 ? 255 : r;
+      this.data[i] = ((Math.tanh(x * drive) + 1) * 127.5 + 0.5) | 0;
     }
     return this;
   }
@@ -234,6 +233,23 @@ class GlitchBuffer implements IGlitchBuffer {
 
   invert(): this {
     for (let i = 0; i < this.data.length; i++) this.data[i] = 255 - this.data[i];
+    return this;
+  }
+
+  // Shift one RGB channel by (dx, dy) as fractions of width/height. Wraps toroidally.
+  transpose(ch: number, dx: number, dy: number): this {
+    const { width, height } = this;
+    if (!width || !height) return this;
+    const offX = Math.round(dx * width);
+    const offY = Math.round(dy * height);
+    const orig = this.data.slice();
+    for (let srcY = 0; srcY < height; srcY++) {
+      const py = ((srcY + offY) % height + height) % height;
+      for (let srcX = 0; srcX < width; srcX++) {
+        const px = ((srcX + offX) % width + width) % width;
+        this.data[(py * width + px) * 3 + ch] = orig[(srcY * width + srcX) * 3 + ch];
+      }
+    }
     return this;
   }
 
@@ -261,8 +277,8 @@ class GlitchBuffer implements IGlitchBuffer {
     return this;
   }
 
-  // Wavefolder: reflects values at 0 and 255 boundaries drive times.
-  // drive ~1 = subtle, higher = more folds.
+  // Wavefolder: reflects values at 0 and 255 boundaries.
+  // drive ≤ 0.5 = passthrough, ~1 = one full fold, higher = multiple folds.
   fold(drive: number): this {
     for (let i = 0; i < this.data.length; i++) {
       let v = (this.data[i] / 255) * drive; // scale up
@@ -286,13 +302,12 @@ class GlitchBuffer implements IGlitchBuffer {
   // Extract one RGB channel (0=R 1=G 2=B) into a contiguous sub-buffer,
   // apply fn, then write back — same pattern as select.
   async channel(ch: number, fn: (sub: GlitchBuffer) => Promise<void>): Promise<this> {
-    const stride = 3;
-    const count = Math.floor(this.data.length / stride);
+    const count = Math.floor(this.data.length / 3);
     const extracted = new Uint8Array(count);
-    for (let i = 0; i < count; i++) extracted[i] = this.data[i * stride + ch];
+    for (let i = 0; i < count; i++) extracted[i] = this.data[i * 3 + ch];
     const sub = new GlitchBuffer(extracted, 0, 0, this.rand);
     await fn(sub);
-    for (let i = 0; i < count; i++) this.data[i * stride + ch] = extracted[i];
+    for (let i = 0; i < count; i++) this.data[i * 3 + ch] = extracted[i];
     return this;
   }
 
@@ -301,11 +316,8 @@ class GlitchBuffer implements IGlitchBuffer {
     const snapshot = this.data.slice();
     await fn(this);
     const len = Math.min(snapshot.length, this.data.length);
-    for (let i = 0; i < len; i++) {
-      const val = snapshot[i] * (1 - wet) + this.data[i] * wet;
-      const r = (val + 0.5) | 0;
-      this.data[i] = r < 0 ? 0 : r > 255 ? 255 : r;
-    }
+    for (let i = 0; i < len; i++)
+      this.data[i] = (snapshot[i] * (1 - wet) + this.data[i] * wet + 0.5) | 0;
     return this;
   }
 
