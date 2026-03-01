@@ -35,6 +35,9 @@ pitchshift semitones   # Tone.js time-preserving pitch shift (semitones, e.g. -1
 phaser freq oct base wet  # Tone.js all-pass phaser          (freq Hz, octaves, base Hz, wet 0–1)
 freqshift freq wet     # Tone.js frequency shifter           (freq Hz shift ±, wet 0–1)
 vibrato freq depth wet # Tone.js LFO pitch wobble            (freq Hz, depth 0–1, wet 0–1)
+chebyshev order wet    # Tone.js harmonic waveshaper         (order 1–100, wet 0–1)
+autowah base oct sens wet  # Tone.js envelope-follower wah   (base Hz, octaves, sensitivity dB, wet 0–1)
+feedbackdelay delay fb wet  # Tone.js recirculating delay    (delay 0–100, feedback 0–1, wet 0–1)
 ```
 
 ### Byte effects & transforms
@@ -51,6 +54,10 @@ solarize threshold     # invert bytes above threshold      (threshold 0–1)
 ### Pixel effects & transforms
 
 ```
+sort thresh            # sort pixels by luma within rows         (thresh ≥0 = bright runs, <0 = dark runs)
+sortvertical thresh    # sort pixels by luma within columns      (same threshold sign convention)
+smear amount decay     # propagate peak value forward with decay (amount 0–100, decay 0–1)
+xor value              # XOR every byte against value            (0–255; try 85 or 170)
 shuffle amount         # randomly swap amount% of pixels (seeded, whole RGB pixels, 0–100)
 transpose ch dx dy     # shift one channel layer by dx/dy (0–100% of width/height, wraps)
 rescale w h            # resize image to w×h pixels

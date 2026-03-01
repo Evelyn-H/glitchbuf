@@ -34,6 +34,13 @@ interface IGlitchBuffer {
   phaser(frequency: Frequency, octaves: number, baseFrequency: Frequency, wet: Wet): Promise<this>;
   frequencyShift(frequency: Frequency, wet: Wet): Promise<this>;
   vibrato(frequency: Frequency, depth: number, wet: Wet): Promise<this>;
+  chebyshev(order: number, wet: Wet): Promise<this>;
+  autowah(baseFrequency: Frequency, octaves: number, sensitivity: Decibels, wet: Wet): Promise<this>;
+  feedbackDelay(delayTime: Percentage, feedback: number, wet: Wet): Promise<this>;
+  sort(threshold: Percentage): this;
+  sortvertical(threshold: Percentage): this;
+  smear(amount: Percentage, decay: number): this;
+  xor(value: number): this;
   invert(): this;
   shuffle(amount: Percentage): this;
   transpose(ch: number, dx: Percentage, dy: Percentage): this;
@@ -70,6 +77,17 @@ function glitchToRgba(buf: Uint8Array, width: number, height: number): Uint8Clam
 // Convert a 0–100 percentage to an integer index within a buffer of given length.
 function pct(p: number, len: number): number {
   return Math.floor(p / 100 * len);
+}
+
+// Round a float to the nearest integer and clamp to the byte range [0, 255].
+function clamp8(v: number): number {
+  const r = (v + 0.5) | 0;
+  return r < 0 ? 0 : r > 255 ? 255 : r;
+}
+
+// Convert a decibel value to a linear amplitude multiplier.
+function dbToLin(db: number): number {
+  return Math.pow(10, db / 20);
 }
 
 // ── GlitchBuffer ────────────────────────────────────────────────────────────
@@ -111,7 +129,9 @@ class GlitchBuffer implements IGlitchBuffer {
     return this;
   }
 
-  async reverb(roomSize: number, dampening: Frequency, wet: Wet): Promise<this> {
+  // Shared pipeline for all Tone.js effects: bytes↔floats + Tone.Offline render.
+  // buildFx is called inside the Offline context and must return an unconnected Tone node.
+  private async toneProcess(extraDuration: number, buildFx: () => any): Promise<this> {
     const sampleRate = 44100;
     const len = this.data.length;
     const duration = len / sampleRate;
@@ -123,21 +143,21 @@ class GlitchBuffer implements IGlitchBuffer {
     srcBuffer.copyToChannel(samples, 0);
 
     const rendered = await Tone.Offline(({ transport }: any) => {
-      const freeverb = new Tone.Freeverb({ roomSize, dampening, wet }).toDestination();
+      const fx = buildFx().toDestination();
       const player = new Tone.Player(new Tone.ToneAudioBuffer(srcBuffer));
-      player.connect(freeverb);
+      player.connect(fx);
       player.start(0);
       transport.start(0);
-    }, duration + 1.0);
+    }, duration + extraDuration);
 
     const out = rendered.getChannelData(0);
-    for (let i = 0; i < len; i++) {
-      const v = (out[i] + 1) * 127.5;
-      const r = (v + 0.5) | 0;
-      this.data[i] = r < 0 ? 0 : r > 255 ? 255 : r;
-    }
+    for (let i = 0; i < len; i++) this.data[i] = clamp8((out[i] + 1) * 127.5);
 
     return this;
+  }
+
+  async reverb(roomSize: number, dampening: Frequency, wet: Wet): Promise<this> {
+    return this.toneProcess(1.0, () => new Tone.Freeverb({ roomSize, dampening, wet }));
   }
 
   reverse(): this {
@@ -158,31 +178,23 @@ class GlitchBuffer implements IGlitchBuffer {
   bitcrush(bits: number): this {
     // step is always a power of 2, so masking beats float division/multiply.
     const mask = 0xFF & ~((1 << (8 - bits)) - 1);
-    for (let i = 0; i < this.data.length; i++) {
-      this.data[i] = this.data[i] & mask;
-    }
+    for (let i = 0; i < this.data.length; i++) this.data[i] &= mask;
     return this;
   }
 
   noise(db: Decibels): this {
-    const amplitude = 255 * Math.pow(10, db / 20);
-    for (let i = 0; i < this.data.length; i++) {
-      const val = this.data[i] + ((this.rand() * 2 - 1) + (this.rand() * 2 - 1)) * 0.5 * amplitude;
-      const r = (val + 0.5) | 0;
-      this.data[i] = r < 0 ? 0 : r > 255 ? 255 : r;
-    }
+    const amplitude = 255 * dbToLin(db);
+    for (let i = 0; i < this.data.length; i++)
+      this.data[i] = clamp8(this.data[i] + ((this.rand() * 2 - 1) + (this.rand() * 2 - 1)) * 0.5 * amplitude);
     return this;
   }
 
   echo(delay: Percentage, gainDb: Decibels): this {
     const len = this.data.length;
     const d = pct(delay, len);
-    const gain = Math.pow(10, gainDb / 20);
-    for (let i = 0; i < len - d; i++) {
-      const val = this.data[i + d] + gain * this.data[i];
-      const r = (val + 0.5) | 0;
-      this.data[i + d] = r < 0 ? 0 : r > 255 ? 255 : r;
-    }
+    const gain = dbToLin(gainDb);
+    for (let i = 0; i < len - d; i++)
+      this.data[i + d] = clamp8(this.data[i + d] + gain * this.data[i]);
     return this;
   }
 
@@ -192,9 +204,7 @@ class GlitchBuffer implements IGlitchBuffer {
     const len = this.data.length;
     for (let i = 0; i < len; i++) {
       const lfo = 1 - depth * 0.5 * (1 - Math.sin(2 * Math.PI * rate * i / len));
-      const val = (this.data[i] - 127.5) * lfo + 127.5;
-      const r = (val + 0.5) | 0;
-      this.data[i] = r < 0 ? 0 : r > 255 ? 255 : r;
+      this.data[i] = clamp8((this.data[i] - 127.5) * lfo + 127.5);
     }
     return this;
   }
@@ -218,9 +228,7 @@ class GlitchBuffer implements IGlitchBuffer {
       const offset = Math.round(halfDepth * Math.sin(2 * Math.PI * rate * i / len));
       const j = i + offset;
       const sample = (j >= 0 && j < len) ? orig[j] : orig[i];
-      const val = orig[i] * (1 - wet) + sample * wet;
-      const r = (val + 0.5) | 0;
-      this.data[i] = r < 0 ? 0 : r > 255 ? 255 : r;
+      this.data[i] = clamp8(orig[i] * (1 - wet) + sample * wet);
     }
     return this;
   }
@@ -292,6 +300,77 @@ class GlitchBuffer implements IGlitchBuffer {
     return this;
   }
 
+  private luma(idx: number): number {
+    return (this.data[idx * 3] * 77 + this.data[idx * 3 + 1] * 150 + this.data[idx * 3 + 2] * 29) >> 8;
+  }
+
+  private sortRun(run: number[]): void {
+    if (run.length < 2) return;
+    const px = run.map(i => ({ r: this.data[i * 3], g: this.data[i * 3 + 1], b: this.data[i * 3 + 2], l: this.luma(i) }));
+    px.sort((a, b) => a.l - b.l);
+    for (let k = 0; k < run.length; k++) {
+      this.data[run[k] * 3] = px[k].r;
+      this.data[run[k] * 3 + 1] = px[k].g;
+      this.data[run[k] * 3 + 2] = px[k].b;
+    }
+  }
+
+  // Sort pixels by luma within rows. Runs above threshold (positive) or below abs(threshold) (negative).
+  sort(threshold: Percentage): this {
+    const { width, height } = this;
+    if (!width || !height) return this;
+    const t = Math.abs(threshold) / 100 * 255;
+    const above = threshold >= 0;
+    for (let y = 0; y < height; y++) {
+      let run: number[] = [];
+      for (let x = 0; x <= width; x++) {
+        const idx = y * width + x;
+        const in_ = x < width && (above ? this.luma(idx) >= t : this.luma(idx) < t);
+        if (in_) { run.push(idx); } else { this.sortRun(run); run = []; }
+      }
+    }
+    return this;
+  }
+
+  // Sort pixels by luma within columns. Threshold sign works the same as sort.
+  sortvertical(threshold: Percentage): this {
+    const { width, height } = this;
+    if (!width || !height) return this;
+    const t = Math.abs(threshold) / 100 * 255;
+    const above = threshold >= 0;
+    for (let x = 0; x < width; x++) {
+      let run: number[] = [];
+      for (let y = 0; y <= height; y++) {
+        const idx = y * width + x;
+        const in_ = y < height && (above ? this.luma(idx) >= t : this.luma(idx) < t);
+        if (in_) { run.push(idx); } else { this.sortRun(run); run = []; }
+      }
+    }
+    return this;
+  }
+
+  // Peak-follower smear: propagate the running maximum forward with exponential decay, per channel.
+  // amount: smear length as % of pixel count; decay: fraction remaining at that distance (0 = no smear, 1 = hold forever).
+  smear(amount: Percentage, decay: number): this {
+    const len = this.data.length;
+    const steps = Math.max(1, pct(amount, Math.floor(len / 3)));
+    const perStep = Math.pow(decay, 1 / steps);
+    for (let ch = 0; ch < 3; ch++) {
+      let run = 0;
+      for (let i = ch; i < len; i += 3) {
+        run = Math.max(this.data[i], run * perStep);
+        this.data[i] = (run + 0.5) | 0;
+      }
+    }
+    return this;
+  }
+
+  // XOR every byte against a fixed value (0–255). xor 85 / xor 170 give structured bit patterns.
+  xor(value: number): this {
+    for (let i = 0; i < this.data.length; i++) this.data[i] ^= value;
+    return this;
+  }
+
   // Extract one RGB channel (0=R 1=G 2=B) into a contiguous sub-buffer,
   // apply fn, then write back — same pattern as select.
   async channel(ch: number, fn: (sub: GlitchBuffer) => Promise<void>): Promise<this> {
@@ -317,125 +396,41 @@ class GlitchBuffer implements IGlitchBuffer {
   // Tone.js Phaser — all-pass filter cascade swept by an LFO.
   // frequency: LFO rate in Hz, octaves: sweep width, baseFrequency: center Hz, wet: 0–1.
   async phaser(frequency: Frequency, octaves: number, baseFrequency: Frequency, wet: Wet): Promise<this> {
-    const sampleRate = 44100;
-    const len = this.data.length;
-    const duration = len / sampleRate;
-
-    const samples = new Float32Array(len);
-    for (let i = 0; i < len; i++) samples[i] = this.data[i] / 127.5 - 1;
-
-    const srcBuffer = new AudioBuffer({ numberOfChannels: 1, length: len, sampleRate });
-    srcBuffer.copyToChannel(samples, 0);
-
-    const rendered = await Tone.Offline(({ transport }: any) => {
-      const fx = new Tone.Phaser({ frequency, octaves, baseFrequency, wet }).toDestination();
-      const player = new Tone.Player(new Tone.ToneAudioBuffer(srcBuffer));
-      player.connect(fx);
-      player.start(0);
-      transport.start(0);
-    }, duration + 0.1);
-
-    const out = rendered.getChannelData(0);
-    for (let i = 0; i < len; i++) {
-      const v = (out[i] + 1) * 127.5;
-      const r = (v + 0.5) | 0;
-      this.data[i] = r < 0 ? 0 : r > 255 ? 255 : r;
-    }
-
-    return this;
+    return this.toneProcess(0.1, () => new Tone.Phaser({ frequency, octaves, baseFrequency, wet }));
   }
 
   // Tone.js FrequencyShifter — shifts all frequencies up or down by a fixed Hz amount.
   // frequency: Hz shift (positive = up, negative = down), wet: 0–1.
   async frequencyShift(frequency: Frequency, wet: Wet): Promise<this> {
-    const sampleRate = 44100;
-    const len = this.data.length;
-    const duration = len / sampleRate;
-
-    const samples = new Float32Array(len);
-    for (let i = 0; i < len; i++) samples[i] = this.data[i] / 127.5 - 1;
-
-    const srcBuffer = new AudioBuffer({ numberOfChannels: 1, length: len, sampleRate });
-    srcBuffer.copyToChannel(samples, 0);
-
-    const rendered = await Tone.Offline(({ transport }: any) => {
-      const fx = new Tone.FrequencyShifter({ frequency, wet }).toDestination();
-      const player = new Tone.Player(new Tone.ToneAudioBuffer(srcBuffer));
-      player.connect(fx);
-      player.start(0);
-      transport.start(0);
-    }, duration + 0.1);
-
-    const out = rendered.getChannelData(0);
-    for (let i = 0; i < len; i++) {
-      const v = (out[i] + 1) * 127.5;
-      const r = (v + 0.5) | 0;
-      this.data[i] = r < 0 ? 0 : r > 255 ? 255 : r;
-    }
-
-    return this;
+    return this.toneProcess(0.1, () => new Tone.FrequencyShifter({ frequency, wet }));
   }
 
   // Tone.js Vibrato — LFO pitch wobble via delay modulation.
   // frequency: LFO rate in Hz, depth: modulation amount 0–1, wet: 0–1.
   async vibrato(frequency: Frequency, depth: number, wet: Wet): Promise<this> {
-    const sampleRate = 44100;
-    const len = this.data.length;
-    const duration = len / sampleRate;
+    return this.toneProcess(0.1, () => new Tone.Vibrato({ frequency, depth, wet }));
+  }
 
-    const samples = new Float32Array(len);
-    for (let i = 0; i < len; i++) samples[i] = this.data[i] / 127.5 - 1;
+  // Tone.js Chebyshev waveshaper — adds nth-order harmonics. order 1 = clean, ~50 = harsh.
+  async chebyshev(order: number, wet: Wet): Promise<this> {
+    return this.toneProcess(0.1, () => new Tone.Chebyshev({ order, wet }));
+  }
 
-    const srcBuffer = new AudioBuffer({ numberOfChannels: 1, length: len, sampleRate });
-    srcBuffer.copyToChannel(samples, 0);
+  // Tone.js AutoWah — envelope follower sweeps a bandpass filter.
+  // baseFrequency: center Hz, octaves: sweep range, sensitivity: follower threshold dB, wet: 0–1.
+  async autowah(baseFrequency: Frequency, octaves: number, sensitivity: Decibels, wet: Wet): Promise<this> {
+    return this.toneProcess(0.1, () => new Tone.AutoWah({ baseFrequency, octaves, sensitivity, wet }));
+  }
 
-    const rendered = await Tone.Offline(({ transport }: any) => {
-      const fx = new Tone.Vibrato({ frequency, depth, wet }).toDestination();
-      const player = new Tone.Player(new Tone.ToneAudioBuffer(srcBuffer));
-      player.connect(fx);
-      player.start(0);
-      transport.start(0);
-    }, duration + 0.1);
-
-    const out = rendered.getChannelData(0);
-    for (let i = 0; i < len; i++) {
-      const v = (out[i] + 1) * 127.5;
-      const r = (v + 0.5) | 0;
-      this.data[i] = r < 0 ? 0 : r > 255 ? 255 : r;
-    }
-
-    return this;
+  // Tone.js FeedbackDelay — delay with a recirculating feedback loop.
+  // delayTime: 0–100% of buffer length converted to seconds, feedback: 0–1, wet: 0–1.
+  async feedbackDelay(delayTime: Percentage, feedback: number, wet: Wet): Promise<this> {
+    const delaySeconds = pct(delayTime, this.data.length) / 44100;
+    return this.toneProcess(2.0, () => new Tone.FeedbackDelay({ delayTime: delaySeconds, feedback, wet }));
   }
 
   // Tone.js PitchShift — time-preserving pitch shift. semitones: e.g. -12 to 12.
   async pitchShift(semitones: number): Promise<this> {
-    const sampleRate = 44100;
-    const len = this.data.length;
-    const duration = len / sampleRate;
-
-    // bytes [0,255] → floats [-1,1]
-    const samples = new Float32Array(len);
-    for (let i = 0; i < len; i++) samples[i] = this.data[i] / 127.5 - 1;
-
-    // Wrap in a standard AudioBuffer so Tone can consume it
-    const srcBuffer = new AudioBuffer({ numberOfChannels: 1, length: len, sampleRate });
-    srcBuffer.copyToChannel(samples, 0);
-
-    const rendered = await Tone.Offline(({ transport }: any) => {
-      const shift = new Tone.PitchShift(semitones).toDestination();
-      const player = new Tone.Player(new Tone.ToneAudioBuffer(srcBuffer));
-      player.connect(shift);
-      player.start(0);
-      transport.start(0);
-    }, duration + 0.5); // extra headroom for PitchShift lookahead
-
-    const out = rendered.getChannelData(0);
-    for (let i = 0; i < len; i++) {
-      const v = (out[i] + 1) * 127.5;
-      const r = (v + 0.5) | 0;
-      this.data[i] = r < 0 ? 0 : r > 255 ? 255 : r;
-    }
-
-    return this;
+    return this.toneProcess(0.5, () => new Tone.PitchShift(semitones)); // extra headroom for lookahead
   }
 }
