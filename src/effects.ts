@@ -11,6 +11,9 @@ type Decibels = number & { readonly [_db]: void };     // amplitude on dB scale
 declare const _wet: unique symbol;
 type Wet = number & { readonly [_wet]: void };         // 0–1 linear mix ratio
 
+declare const _hz: unique symbol;
+type Frequency = number & { readonly [_hz]: void };    // Hz
+
 // ── Interface ───────────────────────────────────────────────────────────────
 
 interface IGlitchBuffer {
@@ -20,7 +23,7 @@ interface IGlitchBuffer {
   noise(amount: Decibels): this;
   reverse(): this;
   echo(delay: Percentage, gainDb: Decibels): this;
-  reverb(roomSize: number, dampening: number, wet: Wet): Promise<this>;
+  reverb(roomSize: number, dampening: Frequency, wet: Wet): Promise<this>;
   rescale(newWidth: number, newHeight: number): Promise<this>;
   select(start: Percentage, end: Percentage, fn: (sub: IGlitchBuffer) => Promise<void>): Promise<this>;
   copy(srcStart: Percentage, srcEnd: Percentage, dstStart: Percentage): this;
@@ -28,6 +31,9 @@ interface IGlitchBuffer {
   distort(drive: number): this;
   chorus(rate: number, depth: Percentage, wet: Wet): this;
   pitchShift(semitones: number): Promise<this>;
+  phaser(frequency: Frequency, octaves: number, baseFrequency: Frequency, wet: Wet): Promise<this>;
+  frequencyShift(frequency: Frequency, wet: Wet): Promise<this>;
+  vibrato(frequency: Frequency, depth: number, wet: Wet): Promise<this>;
   invert(): this;
   shuffle(amount: Percentage): this;
   transpose(ch: number, dx: Percentage, dy: Percentage): this;
@@ -105,7 +111,7 @@ class GlitchBuffer implements IGlitchBuffer {
     return this;
   }
 
-  async reverb(roomSize: number, dampening: number, wet: Wet): Promise<this> {
+  async reverb(roomSize: number, dampening: Frequency, wet: Wet): Promise<this> {
     const sampleRate = 44100;
     const len = this.data.length;
     const duration = len / sampleRate;
@@ -305,6 +311,99 @@ class GlitchBuffer implements IGlitchBuffer {
     const len = Math.min(snapshot.length, this.data.length);
     for (let i = 0; i < len; i++)
       this.data[i] = (snapshot[i] * (1 - wet) + this.data[i] * wet + 0.5) | 0;
+    return this;
+  }
+
+  // Tone.js Phaser — all-pass filter cascade swept by an LFO.
+  // frequency: LFO rate in Hz, octaves: sweep width, baseFrequency: center Hz, wet: 0–1.
+  async phaser(frequency: Frequency, octaves: number, baseFrequency: Frequency, wet: Wet): Promise<this> {
+    const sampleRate = 44100;
+    const len = this.data.length;
+    const duration = len / sampleRate;
+
+    const samples = new Float32Array(len);
+    for (let i = 0; i < len; i++) samples[i] = this.data[i] / 127.5 - 1;
+
+    const srcBuffer = new AudioBuffer({ numberOfChannels: 1, length: len, sampleRate });
+    srcBuffer.copyToChannel(samples, 0);
+
+    const rendered = await Tone.Offline(({ transport }: any) => {
+      const fx = new Tone.Phaser({ frequency, octaves, baseFrequency, wet }).toDestination();
+      const player = new Tone.Player(new Tone.ToneAudioBuffer(srcBuffer));
+      player.connect(fx);
+      player.start(0);
+      transport.start(0);
+    }, duration + 0.1);
+
+    const out = rendered.getChannelData(0);
+    for (let i = 0; i < len; i++) {
+      const v = (out[i] + 1) * 127.5;
+      const r = (v + 0.5) | 0;
+      this.data[i] = r < 0 ? 0 : r > 255 ? 255 : r;
+    }
+
+    return this;
+  }
+
+  // Tone.js FrequencyShifter — shifts all frequencies up or down by a fixed Hz amount.
+  // frequency: Hz shift (positive = up, negative = down), wet: 0–1.
+  async frequencyShift(frequency: Frequency, wet: Wet): Promise<this> {
+    const sampleRate = 44100;
+    const len = this.data.length;
+    const duration = len / sampleRate;
+
+    const samples = new Float32Array(len);
+    for (let i = 0; i < len; i++) samples[i] = this.data[i] / 127.5 - 1;
+
+    const srcBuffer = new AudioBuffer({ numberOfChannels: 1, length: len, sampleRate });
+    srcBuffer.copyToChannel(samples, 0);
+
+    const rendered = await Tone.Offline(({ transport }: any) => {
+      const fx = new Tone.FrequencyShifter({ frequency, wet }).toDestination();
+      const player = new Tone.Player(new Tone.ToneAudioBuffer(srcBuffer));
+      player.connect(fx);
+      player.start(0);
+      transport.start(0);
+    }, duration + 0.1);
+
+    const out = rendered.getChannelData(0);
+    for (let i = 0; i < len; i++) {
+      const v = (out[i] + 1) * 127.5;
+      const r = (v + 0.5) | 0;
+      this.data[i] = r < 0 ? 0 : r > 255 ? 255 : r;
+    }
+
+    return this;
+  }
+
+  // Tone.js Vibrato — LFO pitch wobble via delay modulation.
+  // frequency: LFO rate in Hz, depth: modulation amount 0–1, wet: 0–1.
+  async vibrato(frequency: Frequency, depth: number, wet: Wet): Promise<this> {
+    const sampleRate = 44100;
+    const len = this.data.length;
+    const duration = len / sampleRate;
+
+    const samples = new Float32Array(len);
+    for (let i = 0; i < len; i++) samples[i] = this.data[i] / 127.5 - 1;
+
+    const srcBuffer = new AudioBuffer({ numberOfChannels: 1, length: len, sampleRate });
+    srcBuffer.copyToChannel(samples, 0);
+
+    const rendered = await Tone.Offline(({ transport }: any) => {
+      const fx = new Tone.Vibrato({ frequency, depth, wet }).toDestination();
+      const player = new Tone.Player(new Tone.ToneAudioBuffer(srcBuffer));
+      player.connect(fx);
+      player.start(0);
+      transport.start(0);
+    }, duration + 0.1);
+
+    const out = rendered.getChannelData(0);
+    for (let i = 0; i < len; i++) {
+      const v = (out[i] + 1) * 127.5;
+      const r = (v + 0.5) | 0;
+      this.data[i] = r < 0 ? 0 : r > 255 ? 255 : r;
+    }
+
     return this;
   }
 

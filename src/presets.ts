@@ -39,7 +39,18 @@ fold 1.2
 reverb 25 0.75
 noise -30
 ` },
+  {
+    name: 'phaser', code: `\
+mix .7 (do 
+  (noise -18)
+  (phaser .2 3 50 1) 
+  (distort 2)
+  (chorus (+ 128 45) 0.2 .8)
+)
+` },
 ];
+
+
 
 function loadUserPresets(): Preset[] {
   try { return JSON.parse(localStorage.getItem('glitchbuf_presets') ?? '[]'); }

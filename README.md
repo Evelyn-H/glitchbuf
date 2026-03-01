@@ -32,6 +32,9 @@ tremolo rate depth     # LFO amplitude modulation         (rate = oscillations, 
 distort drive          # tanh soft-clip saturation        (drive ~1 = clean, ~10 = heavy)
 chorus rate depth wet  # LFO time-shift mix               (rate = oscillations, depth = 0–1, wet = 0–1)
 pitchshift semitones   # Tone.js time-preserving pitch shift (semitones, e.g. -12 to 12)
+phaser freq oct base wet  # Tone.js all-pass phaser          (freq Hz, octaves, base Hz, wet 0–1)
+freqshift freq wet     # Tone.js frequency shifter           (freq Hz shift ±, wet 0–1)
+vibrato freq depth wet # Tone.js LFO pitch wobble            (freq Hz, depth 0–1, wet 0–1)
 ```
 
 ### Byte effects & transforms

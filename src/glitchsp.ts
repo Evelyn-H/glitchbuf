@@ -240,7 +240,7 @@ async function evaluate(expr: GlitchVal, env: GlitchEnv, buf: BufCell): Promise<
 function makeGlitchEnv(buf: BufCell, rand: () => number): GlitchEnv {
   const env = new GlitchEnv();
 
-  env.set('reverb', (r: GlitchVal, d: GlitchVal, w: GlitchVal): Promise<GlitchVal> => buf.val.reverb(r as number, d as number, w as Wet));
+  env.set('reverb', (r: GlitchVal, d: GlitchVal, w: GlitchVal): Promise<GlitchVal> => buf.val.reverb(r as number, d as Frequency, w as Wet));
   env.set('rescale', (w: GlitchVal, h: GlitchVal): Promise<GlitchVal> => buf.val.rescale(w as number, h as number));
   // alt name for rescale
   env.set('resize', (w: GlitchVal, h: GlitchVal): Promise<GlitchVal> => buf.val.rescale(w as number, h as number));
@@ -253,6 +253,9 @@ function makeGlitchEnv(buf: BufCell, rand: () => number): GlitchEnv {
   env.set('distort', (d: GlitchVal): GlitchVal => buf.val.distort(d as number));
   env.set('chorus', (r: GlitchVal, d: GlitchVal, w: GlitchVal): GlitchVal => buf.val.chorus(r as number, d as Percentage, w as Wet));
   env.set('pitchshift', (s: GlitchVal): Promise<GlitchVal> => buf.val.pitchShift(s as number));
+  env.set('phaser', (f: GlitchVal, o: GlitchVal, b: GlitchVal, w: GlitchVal): Promise<GlitchVal> => buf.val.phaser(f as Frequency, o as number, b as Frequency, w as Wet));
+  env.set('freqshift', (f: GlitchVal, w: GlitchVal): Promise<GlitchVal> => buf.val.frequencyShift(f as Frequency, w as Wet));
+  env.set('vibrato', (f: GlitchVal, d: GlitchVal, w: GlitchVal): Promise<GlitchVal> => buf.val.vibrato(f as Frequency, d as number, w as Wet));
   env.set('transpose', (ch: GlitchVal, dx: GlitchVal, dy: GlitchVal): GlitchVal => buf.val.transpose(ch as number, dx as Percentage, dy as Percentage));
   env.set('invert', (): GlitchVal => buf.val.invert());
   env.set('shuffle', (pct: GlitchVal): GlitchVal => buf.val.shuffle(pct as Percentage));
