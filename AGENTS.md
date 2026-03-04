@@ -19,12 +19,12 @@ glitchsp should feel like a natural fit for the domain: audio-inspired semantics
 ## File overview
 
 ```
-index.html          — markup; loads Tone.js CDN then dist/glitchbuf.js
-style.css           — dark-mode UI, CSS vars, split-pane grid, mobile layout
+index.html          — markup; loads Tone.js CDN then glitchbuf.js (copied to dist/ on build)
+style.css           — dark-mode UI, CSS vars, split-pane grid, mobile layout (copied to dist/ on build)
 src/effects.ts      — IGlitchBuffer interface, GlitchBuffer class (all ops), rgbaToGlitch/glitchToRgba
 src/glitchsp.ts     — PRNG, tokenizer, parser, GlitchEnv, evaluate, makeGlitchEnv, runGlitchsp
 src/main.ts         — DOM wiring, runImage, fitCanvas, event listeners (UI only)
-dist/glitchbuf.js   — compiled output (tsc outFile, do not edit)
+dist/               — build output: glitchbuf.js + copies of index.html and style.css
 README.md           — user-facing docs; keep op table in sync with effects.ts
 AGENTS.md           — this file
 ```
@@ -32,7 +32,7 @@ AGENTS.md           — this file
 ## Build
 
 ```sh
-npm run build   # tsc → dist/glitchbuf.js (no bundler)
+npm run build   # tsc → dist/glitchbuf.js, then copies index.html + style.css to dist/
 ```
 
 `module: none` + `outFile` — tsc concatenates in reference order: `effects.ts` → `glitchsp.ts` → `main.ts`. Works as `file://`.

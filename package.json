@@ -1,6 +1,11 @@
 {
   "name": "glitchbuf",
   "private": true,
-  "scripts": { "build": "tsc", "watch": "tsc --watch" },
-  "devDependencies": { "typescript": "^5.7.0" }
+  "scripts": {
+    "build": "tsc && cp index.html style.css dist/",
+    "watch": "tsc --watch"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
 }
