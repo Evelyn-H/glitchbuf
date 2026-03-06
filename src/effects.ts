@@ -23,7 +23,7 @@ interface IGlitchBuffer {
   noise(amount: Decibels): this;
   reverse(): this;
   echo(delay: Percentage, gainDb: Decibels): this;
-  reverb(roomSize: number, dampening: Frequency, wet: Wet): Promise<this>;
+  reverb(roomSize: number, dampening: Frequency): Promise<this>;
   rescale(newWidth: number, newHeight?: number): Promise<this>;
   select(start: Percentage, end: Percentage, fn: (sub: IGlitchBuffer) => Promise<void>): Promise<this>;
   copy(srcStart: Percentage, srcEnd: Percentage, dstStart: Percentage): this;
@@ -31,12 +31,12 @@ interface IGlitchBuffer {
   distort(drive: number): this;
   chorus(rate: number, depth: Percentage, wet: Wet): this;
   pitchShift(semitones: number): Promise<this>;
-  phaser(frequency: Frequency, octaves: number, baseFrequency: Frequency, wet: Wet): Promise<this>;
-  frequencyShift(frequency: Frequency, wet: Wet): Promise<this>;
-  vibrato(frequency: Frequency, depth: number, wet: Wet): Promise<this>;
-  chebyshev(order: number, wet: Wet): Promise<this>;
-  autowah(baseFrequency: Frequency, octaves: number, sensitivity: Decibels, wet: Wet): Promise<this>;
-  feedbackDelay(delayTime: Percentage, feedback: number, wet: Wet): Promise<this>;
+  phaser(frequency: Frequency, octaves: number, baseFrequency: Frequency): Promise<this>;
+  frequencyShift(frequency: Frequency): Promise<this>;
+  vibrato(frequency: Frequency, depth: number): Promise<this>;
+  chebyshev(order: number): Promise<this>;
+  autowah(baseFrequency: Frequency, octaves: number, sensitivity: Decibels): Promise<this>;
+  feedbackDelay(delayTime: Percentage, feedback: number): Promise<this>;
   sort(threshold: Percentage): this;
   sortvertical(threshold: Percentage): this;
   smear(amount: Percentage, decay: number): this;
@@ -156,8 +156,8 @@ class GlitchBuffer implements IGlitchBuffer {
     return this;
   }
 
-  async reverb(roomSize: number, dampening: Frequency, wet: Wet): Promise<this> {
-    return this.toneProcess(1.0, () => new Tone.Freeverb({ roomSize, dampening, wet }));
+  async reverb(roomSize: number, dampening: Frequency): Promise<this> {
+    return this.toneProcess(1.0, () => new Tone.Freeverb({ roomSize, dampening }));
   }
 
   reverse(): this {
@@ -394,39 +394,39 @@ class GlitchBuffer implements IGlitchBuffer {
   }
 
   // Tone.js Phaser — all-pass filter cascade swept by an LFO.
-  // frequency: LFO rate in Hz, octaves: sweep width, baseFrequency: center Hz, wet: 0–1.
-  async phaser(frequency: Frequency, octaves: number, baseFrequency: Frequency, wet: Wet): Promise<this> {
-    return this.toneProcess(0.1, () => new Tone.Phaser({ frequency, octaves, baseFrequency, wet }));
+  // frequency: LFO rate in Hz, octaves: sweep width, baseFrequency: center Hz.
+  async phaser(frequency: Frequency, octaves: number, baseFrequency: Frequency): Promise<this> {
+    return this.toneProcess(0.1, () => new Tone.Phaser({ frequency, octaves, baseFrequency }));
   }
 
   // Tone.js FrequencyShifter — shifts all frequencies up or down by a fixed Hz amount.
-  // frequency: Hz shift (positive = up, negative = down), wet: 0–1.
-  async frequencyShift(frequency: Frequency, wet: Wet): Promise<this> {
-    return this.toneProcess(0.1, () => new Tone.FrequencyShifter({ frequency, wet }));
+  // frequency: Hz shift (positive = up, negative = down).
+  async frequencyShift(frequency: Frequency): Promise<this> {
+    return this.toneProcess(0.1, () => new Tone.FrequencyShifter({ frequency }));
   }
 
   // Tone.js Vibrato — LFO pitch wobble via delay modulation.
-  // frequency: LFO rate in Hz, depth: modulation amount 0–1, wet: 0–1.
-  async vibrato(frequency: Frequency, depth: number, wet: Wet): Promise<this> {
-    return this.toneProcess(0.1, () => new Tone.Vibrato({ frequency, depth, wet }));
+  // frequency: LFO rate in Hz, depth: modulation amount 0–1.
+  async vibrato(frequency: Frequency, depth: number): Promise<this> {
+    return this.toneProcess(0.1, () => new Tone.Vibrato({ frequency, depth }));
   }
 
   // Tone.js Chebyshev waveshaper — adds nth-order harmonics. order 1 = clean, ~50 = harsh.
-  async chebyshev(order: number, wet: Wet): Promise<this> {
-    return this.toneProcess(0.1, () => new Tone.Chebyshev({ order, wet }));
+  async chebyshev(order: number): Promise<this> {
+    return this.toneProcess(0.1, () => new Tone.Chebyshev({ order }));
   }
 
   // Tone.js AutoWah — envelope follower sweeps a bandpass filter.
-  // baseFrequency: center Hz, octaves: sweep range, sensitivity: follower threshold dB, wet: 0–1.
-  async autowah(baseFrequency: Frequency, octaves: number, sensitivity: Decibels, wet: Wet): Promise<this> {
-    return this.toneProcess(0.1, () => new Tone.AutoWah({ baseFrequency, octaves, sensitivity, wet }));
+  // baseFrequency: center Hz, octaves: sweep range, sensitivity: follower threshold dB.
+  async autowah(baseFrequency: Frequency, octaves: number, sensitivity: Decibels): Promise<this> {
+    return this.toneProcess(0.1, () => new Tone.AutoWah({ baseFrequency, octaves, sensitivity }));
   }
 
   // Tone.js FeedbackDelay — delay with a recirculating feedback loop.
-  // delayTime: 0–100% of buffer length converted to seconds, feedback: 0–1, wet: 0–1.
-  async feedbackDelay(delayTime: Percentage, feedback: number, wet: Wet): Promise<this> {
+  // delayTime: 0–100% of buffer length converted to seconds, feedback: 0–1.
+  async feedbackDelay(delayTime: Percentage, feedback: number): Promise<this> {
     const delaySeconds = pct(delayTime, this.data.length) / 44100;
-    return this.toneProcess(2.0, () => new Tone.FeedbackDelay({ delayTime: delaySeconds, feedback, wet }));
+    return this.toneProcess(2.0, () => new Tone.FeedbackDelay({ delayTime: delaySeconds, feedback }));
   }
 
   // Tone.js PitchShift — time-preserving pitch shift. semitones: e.g. -12 to 12.

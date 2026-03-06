@@ -1,5 +1,9 @@
 /// <reference path="presets.ts" />
 
+declare const HELP_MD: string;
+declare const GLITCHSP_MD: string;
+declare const EFFECTS_MD: string;
+
 let originalBuffer: Uint8Array | null = null;
 let imgWidth = 0;
 let imgHeight = 0;
@@ -23,6 +27,10 @@ const modalMsg = document.getElementById('modal-msg') as HTMLParagraphElement;
 const modalInput = document.getElementById('modal-input') as HTMLInputElement;
 const modalOkBtn = document.getElementById('modal-ok') as HTMLButtonElement;
 const modalCancelBtn = document.getElementById('modal-cancel') as HTMLButtonElement;
+const helpBtn = document.getElementById('help-btn') as HTMLButtonElement;
+const helpDialog = document.getElementById('help-dialog') as HTMLDialogElement;
+const helpContent = document.getElementById('help-content') as HTMLDivElement;
+const helpCloseBtn = document.getElementById('help-close') as HTMLButtonElement;
 
 function openModal(opts: { message: string; ok?: string; input?: boolean; initial?: string }): Promise<string | null> {
   return new Promise(resolve => {
@@ -273,6 +281,30 @@ downloadBtn.addEventListener('click', () => {
   });
 });
 
+const helpTabContents: Record<string, string> = { app: HELP_MD, language: GLITCHSP_MD, effects: EFFECTS_MD };
+let activeHelpTab = 'app';
+
+function showHelpTab(tab: string): void {
+  activeHelpTab = tab;
+  helpContent.textContent = helpTabContents[tab];
+  helpContent.scrollTop = 0;
+  document.querySelectorAll<HTMLElement>('.help-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tab);
+  });
+}
+
+helpBtn.addEventListener('click', () => {
+  showHelpTab(activeHelpTab);
+  helpDialog.showModal();
+});
+document.querySelectorAll<HTMLElement>('.help-tab').forEach(btn => {
+  btn.addEventListener('click', () => showHelpTab(btn.dataset.tab!));
+});
+helpCloseBtn.addEventListener('click', () => helpDialog.close());
+helpDialog.addEventListener('click', e => {
+  if (e.target === helpDialog) helpDialog.close();
+});
+
 window.addEventListener('popstate', () => {
   const params = new URLSearchParams(location.search);
   const seed = params.get('seed');
@@ -280,7 +312,7 @@ window.addEventListener('popstate', () => {
   if (seed !== null) seedInput.value = seed;
   if (script !== null) {
     codeArea.value = b64decode(script);
-    lastLoadedCode = script;
+    lastLoadedCode = codeArea.value;
     presetsSelect.value = '';
     currentSelectValue = '';
     deletePresetBtn.disabled = true;

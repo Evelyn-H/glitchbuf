@@ -46,8 +46,11 @@
     </div>
     <div class="field script-field">
       <label for="code">script</label>
-      <textarea id="code" spellcheck="false">bitcrush 4
+      <div class="textarea-wrap">
+        <textarea id="code" spellcheck="false">bitcrush 4
 noise -24</textarea>
+        <button id="help-btn" type="button" aria-label="help">?</button>
+      </div>
     </div>
     <div class="buttons">
       <button id="run" type="button">run</button>
@@ -63,6 +66,18 @@ noise -24</textarea>
       <button id="modal-cancel" type="button">cancel</button>
     </div>
   </dialog>
+  <dialog id="help-dialog" aria-label="help">
+    <div class="help-tabs" role="tablist">
+      <button class="help-tab active" data-tab="app" role="tab">app</button>
+      <button class="help-tab" data-tab="language" role="tab">language</button>
+      <button class="help-tab" data-tab="effects" role="tab">effects</button>
+    </div>
+    <div id="help-content"></div>
+    <div class="modal-buttons">
+      <button id="help-close" type="button">close</button>
+    </div>
+  </dialog>
+  <script>const HELP_MD = '__HELP_MD__'; const GLITCHSP_MD = '__GLITCHSP_MD__'; const EFFECTS_MD = '__EFFECTS_MD__';</script>
   <script src="https://unpkg.com/tone/build/Tone.js"></script>
   <script src="glitchbuf.js"></script>
 

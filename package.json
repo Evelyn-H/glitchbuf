@@ -2,7 +2,7 @@
   "name": "glitchbuf",
   "private": true,
   "scripts": {
-    "build": "tsc && cp index.html style.css dist/",
+    "build": "tsc && node build.js",
     "watch": "tsc --watch"
   },
   "devDependencies": {

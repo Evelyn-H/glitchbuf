@@ -1,6 +1,6 @@
 # glitchbuf — agent context
 
-Keep `AGENTS.md` (`CLAUDE.md` is a symlink) and `README.md` up to date whenever you add ops, change file structure, or alter key design decisions. Future-you will thank you.
+Keep `AGENTS.md` (`CLAUDE.md` is a symlink), `README.md`, and the help docs (`HELP.md`, `GLITCHSP.md`, `EFFECTS.md`) up to date whenever you add ops, change file structure, or alter key design decisions. Future-you will thank you.
 
 ## Goals
 
@@ -25,7 +25,10 @@ src/effects.ts      — IGlitchBuffer interface, GlitchBuffer class (all ops), r
 src/glitchsp.ts     — PRNG, tokenizer, parser, GlitchEnv, evaluate, makeGlitchEnv, runGlitchsp
 src/main.ts         — DOM wiring, runImage, fitCanvas, event listeners (UI only)
 dist/               — build output: glitchbuf.js + copies of index.html and style.css
-README.md           — user-facing docs; keep op table in sync with effects.ts
+README.md           — project intro, setup/build instructions, links to help docs
+HELP.md             — user guide: loading images, seed, run/new buttons, editor shortcuts
+GLITCHSP.md         — glitchsp language reference: syntax, special forms, builtins, examples
+EFFECTS.md          — effects reference: all ops with parameters and descriptions
 AGENTS.md           — this file
 ```
 
@@ -48,6 +51,7 @@ npm run build   # tsc → dist/glitchbuf.js, then copies index.html + style.css 
 - **`reverb` uses a seeded IR** (from `this.rand`) via a raw `ConvolverNode` — avoids `Tone.Reverb`'s random IR which would make the pattern non-deterministic across runs.
 - **`shuffle` operates on whole pixels** (3-byte RGB units), not individual bytes. `pct` is the fraction of total pixels to swap (0–1).
 - **Zero-arg bare ops** (`invert`, `reverse`) work because `parseAll` always wraps bare-line forms in an array, which evaluates as an implicit call. A single bare symbol used to evaluate to a function reference — the fix was removing the `forms.length === 1` short-circuit.
+- **`let` without a body** binds directly into the current `env` (top-level scope), making names available to all subsequent forms. With a body, `let` creates a child `GlitchEnv` as usual. Detected by checking `rest[1] !== undefined`.
 
 ## Layout
 
@@ -60,5 +64,5 @@ Canvas display sizing is handled by `fitCanvas()` in `main.ts` (+ a `ResizeObser
 1. Add method to `GlitchBuffer` in `src/effects.ts`
 2. Add signature to `IGlitchBuffer` in `src/effects.ts`
 3. Add to `makeGlitchEnv` in `src/glitchsp.ts`: `env.set('name', (...) => buf.val.name(...))`
-4. Update the op table in `README.md`
+4. Update the op table in `EFFECTS.md`
 5. Update this file if the design changes meaningfully
