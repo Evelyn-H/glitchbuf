@@ -2,6 +2,8 @@
 
 In-browser image glitching tool. Load an image, write glitchsp code, watch it break.
 
+Try it out at https://ev00.net/glitchbuf or run it yourself locally.
+
 ## Setup
 
 ```sh
