@@ -4,6 +4,7 @@
   --bg-input: #252525;
   --fg: #d0d0d0;
   --fg-dim: #888;
+  --accent: #a8cce8;
   --border: #3c3c3c;
   --btn-bg: #2a2a2a;
   --btn-hover: #333;
@@ -105,16 +106,6 @@ input[type="file"]::file-selector-button:hover {
   background: var(--btn-hover);
 }
 
-#controls textarea {
-  flex: 1;
-  min-height: 0;
-  resize: none;
-  background: var(--bg-input);
-  border: 1px solid var(--border);
-  padding: 8px;
-  line-height: 1.5;
-}
-
 /* ── focus ──────────────────────────────────────────────────────────────── */
 
 :focus-visible {
@@ -146,9 +137,6 @@ input[type="file"]::file-selector-button:hover {
   display: flex;
 }
 
-.textarea-wrap > textarea {
-  flex: 1;
-}
 
 #help-btn {
   position: absolute;
@@ -164,13 +152,20 @@ input[type="file"]::file-selector-button:hover {
   opacity: 1;
 }
 
-#help-dialog {
+dialog {
   background: var(--bg-input);
   border: 1px solid var(--border);
   color: var(--fg);
   font-family: var(--font);
   font-size: var(--font-size);
   padding: var(--sp);
+}
+
+dialog::backdrop {
+  background: rgba(0, 0, 0, 0.55);
+}
+
+#help-dialog {
   max-width: min(680px, 90vw);
   max-height: 80vh;
   width: 100%;
@@ -180,10 +175,6 @@ input[type="file"]::file-selector-button:hover {
 #help-dialog[open] {
   display: flex;
   flex-direction: column;
-}
-
-#help-dialog::backdrop {
-  background: rgba(0, 0, 0, 0.55);
 }
 
 .help-tabs {
@@ -202,7 +193,6 @@ input[type="file"]::file-selector-button:hover {
 
 .help-tab:hover {
   color: var(--fg);
-  background: none;
 }
 
 .help-tab.active {
@@ -227,7 +217,7 @@ input[type="file"]::file-selector-button:hover {
   min-width: 0;
 }
 
-.file-seed-row > :first-child {
+.file-seed-row> :first-child {
   flex: 1;
   min-width: 0;
 }
@@ -238,7 +228,8 @@ input[type="file"]::file-selector-button:hover {
   gap: 3px 6px;
 }
 
-.seed-row label {
+.seed-row label,
+.presets-row label {
   grid-column: 1 / -1;
 }
 
@@ -246,10 +237,6 @@ input[type="file"]::file-selector-button:hover {
   display: grid;
   grid-template-columns: 1fr auto auto;
   gap: 3px 6px;
-}
-
-.presets-row label {
-  grid-column: 1 / -1;
 }
 
 .presets-row select {
@@ -337,17 +324,7 @@ input[type="file"]::file-selector-button:hover {
 }
 
 #modal {
-  background: var(--bg-input);
-  border: 1px solid var(--border);
-  color: var(--fg);
-  font-family: var(--font);
-  font-size: var(--font-size);
-  padding: var(--sp);
   min-width: 260px;
-}
-
-#modal::backdrop {
-  background: rgba(0, 0, 0, 0.55);
 }
 
 #modal-msg {
@@ -385,9 +362,6 @@ input[type="file"]::file-selector-button:hover {
     padding-right: 0;
   }
 
-  #controls textarea {
-    min-height: 150px;
-  }
 }
 
 @media (max-width: 480px) {
@@ -397,7 +371,10 @@ input[type="file"]::file-selector-button:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+
+  *,
+  *::before,
+  *::after {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
   }

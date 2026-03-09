@@ -20,9 +20,12 @@
     - neat but potentially a security issue
   - better error handling in the parsing
   - make lines draggable
-  - popup with docs and sliders when clicking an effect
+  - popup with docs and sliders when clicking an effect\
+  - perhaps an op that allows the user to do infix mathametical operations? (like (calc 6 - (rand)\*3), instead of (- 6 (\* (rand) 3)))
 
 
 ## todo
  - fix loading a preset that was already selected but then code was changed
  - feedback form
+ - make rand optionally take a second param to set min/max instead of just max
+ - logarithmic sliders for certain params (like freq, or other things that span wide ranges)

@@ -1,4 +1,4 @@
-/// <reference path="effects.ts" />
+/// <reference path="ops.ts" />
 
 // ── PRNG ───────────────────────────────────────────────────────────────────
 // Mulberry32 — fast, good quality, fully seedable 32-bit PRNG.
@@ -19,36 +19,95 @@ type GlitchFn = (...args: GlitchVal[]) => GlitchVal | Promise<GlitchVal>;
 type GlitchVal = number | string | boolean | null | GlitchVal[] | IGlitchBuffer | GlitchFn;
 type BufCell = { val: IGlitchBuffer };
 
-// ── Tokenizer ──────────────────────────────────────────────────────────────
+// ── Source-spanning parse tree ─────────────────────────────────────────────
+// ParseNode carries character spans relative to the source string it was
+// parsed from. Used by the editor for arg extraction and reconstruction;
+// the evaluator continues to use GlitchVal via parseNodeToGlitchVal.
 
-function tokenize(src: string): string[] {
-  return src
-    .replace(/[()[\]]/g, m => ` ${m} `)
-    .trim()
-    .split(/\s+/)
-    .filter(t => t.length > 0);
-}
+interface Span { start: number; end: number; }
 
-// ── Parser ─────────────────────────────────────────────────────────────────
+type ParseNode =
+  | { kind: 'atom'; raw: string; value: GlitchVal; span: Span }
+  | { kind: 'list'; children: ParseNode[]; span: Span; bare?: boolean };
 
-function parseExpr(tokens: string[]): GlitchVal {
-  if (tokens.length === 0) throw new Error('Unexpected end of input');
-  const token = tokens.shift()!;
-
-  if (token === '(' || token === '[') {
-    const close = token === '(' ? ')' : ']';
-    const list: GlitchVal[] = [];
-    while (tokens[0] !== close) {
-      if (tokens.length === 0) throw new Error(`Missing closing ${close}`);
-      list.push(parseExpr(tokens));
-    }
-    tokens.shift();
-    return list;
+// Position-aware tokenizer. Strips comments but records character offsets.
+function tokenizePos(src: string): Array<{ text: string; start: number; end: number }> {
+  const out: Array<{ text: string; start: number; end: number }> = [];
+  let i = 0;
+  while (i < src.length) {
+    if (/\s/.test(src[i])) { i++; continue; }
+    if (src[i] === '#') { while (i < src.length && src[i] !== '\n') i++; continue; }
+    if ('()[]'.includes(src[i])) { out.push({ text: src[i], start: i, end: i + 1 }); i++; continue; }
+    const s = i;
+    while (i < src.length && !/[\s()[\]#]/.test(src[i])) i++;
+    if (i > s) out.push({ text: src.slice(s, i), start: s, end: i });
   }
-
-  if (token === ')' || token === ']') throw new Error(`Unexpected ${token}`);
-  return parseAtom(token);
+  return out;
 }
+
+function _parseNode(toks: Array<{ text: string; start: number; end: number }>): ParseNode {
+  if (!toks.length) throw new Error('Unexpected end of input');
+  const tok = toks.shift()!;
+  if (tok.text === '(' || tok.text === '[') {
+    const close = tok.text === '(' ? ')' : ']';
+    const children: ParseNode[] = [];
+    while (toks.length && toks[0].text !== close) children.push(_parseNode(toks));
+    if (!toks.length) throw new Error(`Missing closing ${close}`);
+    const end = toks.shift()!;
+    return { kind: 'list', children, span: { start: tok.start, end: end.end } };
+  }
+  if (tok.text === ')' || tok.text === ']') throw new Error(`Unexpected ${tok.text}`);
+  return { kind: 'atom', raw: tok.text, value: parseAtom(tok.text), span: { start: tok.start, end: tok.end } };
+}
+
+// Parse a single block string into a ParseNode. Bare forms (no outer parens)
+// are wrapped in a synthetic list so callers always get a list with the op
+// name as children[0] and args as children[1..].
+function parseBlock(src: string): ParseNode {
+  const toks = tokenizePos(src);
+  if (!toks.length) return { kind: 'list', children: [], span: { start: 0, end: src.length }, bare: true };
+  if (toks[0].text === '(' || toks[0].text === '[') return _parseNode(toks);
+  const children: ParseNode[] = [];
+  while (toks.length) children.push(_parseNode(toks));
+  return { kind: 'list', children, span: { start: 0, end: src.length }, bare: true };
+}
+
+// Convert a ParseNode back to GlitchVal for the evaluator.
+function parseNodeToGlitchVal(node: ParseNode): GlitchVal {
+  if (node.kind === 'atom') return node.value;
+  return node.children.map(parseNodeToGlitchVal);
+}
+
+// Parse a full source string into a ParseNode[]. Paren forms are parsed
+// greedily; bare forms collect tokens until a newline separates them from
+// the next token at depth 0.
+// Bare single-token forms like `invert` become [invert] lists, which evaluate
+// as zero-arg calls — so bare ops work without any special-casing in evaluate().
+function parse(src: string): ParseNode[] {
+  const result: ParseNode[] = [];
+  const toks = tokenizePos(src);
+  while (toks.length > 0) {
+    if (toks[0].text === ')' || toks[0].text === ']') {
+      throw new Error(`Unexpected ${toks[0].text}`);
+    } else if (toks[0].text === '(' || toks[0].text === '[') {
+      result.push(_parseNode(toks));
+    } else {
+      // Bare form: collect until a newline gap appears between tokens at depth 0.
+      const children: ParseNode[] = [];
+      let lastEnd = toks[0].start;
+      while (toks.length > 0 && toks[0].text !== ')' && toks[0].text !== ']') {
+        if (children.length > 0 && src.slice(lastEnd, toks[0].start).includes('\n')) break;
+        children.push(_parseNode(toks));
+        lastEnd = children[children.length - 1].span.end;
+      }
+      if (children.length > 0)
+        result.push({ kind: 'list', bare: true, children, span: { start: children[0].span.start, end: lastEnd } });
+    }
+  }
+  return result;
+}
+
+// ── Atom parser ────────────────────────────────────────────────────────────
 
 function parseAtom(token: string): GlitchVal {
   if (token === 'true') return true;
@@ -58,46 +117,6 @@ function parseAtom(token: string): GlitchVal {
   const n = Number(token);
   if (token !== '' && !isNaN(n)) return n;
   return token; // symbol
-}
-
-// Top-level parser: bare lines are implicit calls; all statements accumulate
-// across lines until parens are balanced. # begins a line comment.
-function parseAll(src: string): GlitchVal[] {
-  const result: GlitchVal[] = [];
-  let accumulated = '';
-  let depth = 0;
-  let isBare = false;
-
-  for (const rawLine of src.split('\n')) {
-    const line = rawLine.replace(/#.*$/, '').trim();
-    if (!line) continue;
-
-    if (depth === 0) {
-      isBare = !line.startsWith('(') && !line.startsWith('[');
-      accumulated = '';
-    }
-
-    accumulated += (accumulated ? ' ' : '') + line;
-    for (const ch of line) {
-      if (ch === '(' || ch === '[') depth++;
-      if (ch === ')' || ch === ']') depth--;
-    }
-
-    if (depth === 0) {
-      const tokens = tokenize(accumulated);
-      if (isBare) {
-        const forms: GlitchVal[] = [];
-        while (tokens.length > 0) forms.push(parseExpr(tokens));
-        if (forms.length > 0) result.push(forms);
-      } else {
-        result.push(parseExpr(tokens));
-      }
-      accumulated = '';
-    }
-  }
-
-  if (accumulated.trim()) result.push(parseExpr(tokenize(accumulated)));
-  return result;
 }
 
 // ── Environment ────────────────────────────────────────────────────────────
@@ -241,35 +260,13 @@ async function evaluate(expr: GlitchVal, env: GlitchEnv, buf: BufCell): Promise<
 function makeGlitchEnv(buf: BufCell, rand: () => number): GlitchEnv {
   const env = new GlitchEnv();
 
-  env.set('reverb', (r: GlitchVal, d: GlitchVal): Promise<GlitchVal> => buf.val.reverb(r as number, d as Frequency));
-  env.set('rescale', (w: GlitchVal, h?: GlitchVal): Promise<GlitchVal> => buf.val.rescale(w as number, h as number | undefined));
-  // alt name for rescale
-  env.set('resize', (w: GlitchVal, h?: GlitchVal): Promise<GlitchVal> => buf.val.rescale(w as number, h as number | undefined));
-  env.set('bitcrush', (bits: GlitchVal): GlitchVal => buf.val.bitcrush(bits as number));
-  env.set('noise', (amt: GlitchVal): GlitchVal => buf.val.noise(amt as Decibels));
-  env.set('reverse', (): GlitchVal => buf.val.reverse());
-  env.set('echo', (t: GlitchVal, g: GlitchVal): GlitchVal => buf.val.echo(t as Percentage, g as Decibels));
-  env.set('copy', (s: GlitchVal, e: GlitchVal, t: GlitchVal): GlitchVal => buf.val.copy(s as Percentage, e as Percentage, t as Percentage));
-  env.set('tremolo', (r: GlitchVal, d: GlitchVal): GlitchVal => buf.val.tremolo(r as number, d as number));
-  env.set('distort', (d: GlitchVal): GlitchVal => buf.val.distort(d as number));
-  env.set('chorus', (r: GlitchVal, d: GlitchVal, w: GlitchVal): GlitchVal => buf.val.chorus(r as number, d as Percentage, w as Wet));
-  env.set('pitchshift', (s: GlitchVal): Promise<GlitchVal> => buf.val.pitchShift(s as number));
-  env.set('phaser', (f: GlitchVal, o: GlitchVal, b: GlitchVal): Promise<GlitchVal> => buf.val.phaser(f as Frequency, o as number, b as Frequency));
-  env.set('freqshift', (f: GlitchVal): Promise<GlitchVal> => buf.val.frequencyShift(f as Frequency));
-  env.set('vibrato', (f: GlitchVal, d: GlitchVal): Promise<GlitchVal> => buf.val.vibrato(f as Frequency, d as number));
-  env.set('chebyshev', (o: GlitchVal): Promise<GlitchVal> => buf.val.chebyshev(o as number));
-  env.set('autowah', (f: GlitchVal, o: GlitchVal, s: GlitchVal): Promise<GlitchVal> => buf.val.autowah(f as Frequency, o as number, s as Decibels));
-  env.set('feedbackdelay', (dt: GlitchVal, fb: GlitchVal): Promise<GlitchVal> => buf.val.feedbackDelay(dt as Percentage, fb as number));
-  env.set('sort', (t: GlitchVal): GlitchVal => buf.val.sort(t as Percentage));
-  env.set('sortvertical', (t: GlitchVal): GlitchVal => buf.val.sortvertical(t as Percentage));
-  env.set('smear', (a: GlitchVal, d: GlitchVal): GlitchVal => buf.val.smear(a as Percentage, d as number));
-  env.set('xor', (v: GlitchVal): GlitchVal => buf.val.xor(v as number));
-  env.set('transpose', (ch: GlitchVal, dx: GlitchVal, dy: GlitchVal): GlitchVal => buf.val.transpose(ch as number, dx as Percentage, dy as Percentage));
-  env.set('invert', (): GlitchVal => buf.val.invert());
-  env.set('shuffle', (pct: GlitchVal): GlitchVal => buf.val.shuffle(pct as Percentage));
-  env.set('quantize', (n: GlitchVal): GlitchVal => buf.val.quantize(n as number));
-  env.set('fold', (d: GlitchVal): GlitchVal => buf.val.fold(d as number));
-  env.set('solarize', (t: GlitchVal): GlitchVal => buf.val.solarize(t as number));
+  // Register all buffer ops from OPS (those with an invoke function)
+  for (const op of OPS) {
+    if (op.invoke) {
+      const fn = op.invoke;
+      env.set(op.name, (...args: GlitchVal[]) => fn(buf.val, ...args));
+    }
+  }
 
   // channel constants
   env.set('R', 0); env.set('G', 1); env.set('B', 2);
@@ -298,14 +295,40 @@ function makeGlitchEnv(buf: BufCell, rand: () => number): GlitchEnv {
   return env;
 }
 
+// ── Block splitter ─────────────────────────────────────────────────────────
+// Split raw source into top-level block strings, preserving comments (unlike
+// parse()). Used by the editor to split source into draggable rows.
+
+function splitIntoBlocks(src: string): string[] {
+  const rawLines = src.split('\n');
+  const blocks: string[] = [];
+  let currentLines: string[] = [];
+  let depth = 0;
+  for (const rawLine of rawLines) {
+    const active = rawLine.replace(/#.*$/, '');
+    for (const ch of active) {
+      if (ch === '(' || ch === '[') depth++;
+      if (ch === ')' || ch === ']') depth--;
+    }
+    currentLines.push(rawLine);
+    if (depth <= 0) {
+      blocks.push(currentLines.join('\n'));
+      currentLines = [];
+      depth = 0;
+    }
+  }
+  if (currentLines.length > 0) blocks.push(currentLines.join('\n'));
+  return blocks;
+}
+
 // ── Entry point ────────────────────────────────────────────────────────────
 
 function tryParse(code: string): boolean {
-  try { parseAll(code); return true; } catch { return false; }
+  try { parse(code); return true; } catch { return false; }
 }
 
 async function runGlitchsp(code: string, image: IGlitchBuffer, rand: () => number): Promise<void> {
   const buf: BufCell = { val: image };
   const env = makeGlitchEnv(buf, rand);
-  for (const expr of parseAll(code)) await evaluate(expr, env, buf);
+  for (const node of parse(code)) await evaluate(parseNodeToGlitchVal(node), env, buf);
 }

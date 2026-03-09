@@ -6,3 +6,4 @@ html = html.replace("'__EFFECTS_MD__'", JSON.stringify(fs.readFileSync('EFFECTS.
 fs.mkdirSync('dist', { recursive: true });
 fs.writeFileSync('dist/index.html', html);
 fs.copyFileSync('style.css', 'dist/style.css');
+fs.copyFileSync('editor.css', 'dist/editor.css');

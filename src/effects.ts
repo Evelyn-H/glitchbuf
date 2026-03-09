@@ -29,7 +29,7 @@ interface IGlitchBuffer {
   copy(srcStart: Percentage, srcEnd: Percentage, dstStart: Percentage): this;
   tremolo(rate: number, depth: number): this;
   distort(drive: number): this;
-  chorus(rate: number, depth: Percentage, wet: Wet): this;
+  chorus(rate: number, depth: Decibels): this;
   pitchShift(semitones: number): Promise<this>;
   phaser(frequency: Frequency, octaves: number, baseFrequency: Frequency): Promise<this>;
   frequencyShift(frequency: Frequency): Promise<this>;
@@ -157,6 +157,8 @@ class GlitchBuffer implements IGlitchBuffer {
   }
 
   async reverb(roomSize: number, dampening: Frequency): Promise<this> {
+    // Uses Freeverb directly (not Tone.Reverb) so the IR is deterministic — Tone.Reverb
+    // generates a random IR internally, breaking reproducibility across runs.
     return this.toneProcess(1.0, () => new Tone.Freeverb({ roomSize, dampening }));
   }
 
@@ -218,17 +220,18 @@ class GlitchBuffer implements IGlitchBuffer {
     return this;
   }
 
-  // Mix original with an LFO-time-shifted copy. rate = LFO oscillations,
-  // depth = modulation width as fraction of buffer, wet = 0–1 mix.
-  chorus(rate: number, depth: Percentage, wet: Wet): this {
+  // Mix original with an LFO-time-shifted copy. 
+  // rate = LFO oscillations,
+  // depth = modulation width as fraction of buffer
+  chorus(rate: number, depth: Decibels): this {
     const len = this.data.length;
     const orig = this.data.slice();
-    const halfDepth = Math.floor(depth * len * 0.0001);
+    // const halfDepth = Math.floor(depth * len * 0.0001);
+    const halfDepth = dbToLin(depth);
     for (let i = 0; i < len; i++) {
       const offset = Math.round(halfDepth * Math.sin(2 * Math.PI * rate * i / len));
       const j = i + offset;
-      const sample = (j >= 0 && j < len) ? orig[j] : orig[i];
-      this.data[i] = clamp8(orig[i] * (1 - wet) + sample * wet);
+      this.data[i] = (j >= 0 && j < len) ? orig[j] : orig[i];
     }
     return this;
   }
@@ -413,7 +416,8 @@ class GlitchBuffer implements IGlitchBuffer {
 
   // Tone.js Chebyshev waveshaper — adds nth-order harmonics. order 1 = clean, ~50 = harsh.
   async chebyshev(order: number): Promise<this> {
-    return this.toneProcess(0.1, () => new Tone.Chebyshev({ order }));
+    const n = order >= 0 ? 2 * order + 1 : -2 * order;
+    return this.toneProcess(0.1, () => new Tone.Chebyshev({ order: n }));
   }
 
   // Tone.js AutoWah — envelope follower sweeps a bandpass filter.

@@ -41,7 +41,7 @@ mix .7 (do
   (noise -18)
   (phaser .2 3 50)
   (distort 2)
-  (chorus (+ 128 45) 20 .8)
+  (chorus (+ 128 45) .2 .8)
 )
 ` },
   {

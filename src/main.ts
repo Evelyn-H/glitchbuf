@@ -1,4 +1,4 @@
-/// <reference path="presets.ts" />
+/// <reference path="editor.ts" />
 
 declare const HELP_MD: string;
 declare const GLITCHSP_MD: string;
@@ -7,9 +7,9 @@ declare const EFFECTS_MD: string;
 let originalBuffer: Uint8Array | null = null;
 let imgWidth = 0;
 let imgHeight = 0;
+let runTimer: number | null = null;
 
 const fileInput = document.getElementById('file') as HTMLInputElement;
-const codeArea = document.getElementById('code') as HTMLTextAreaElement;
 const runBtn = document.getElementById('run') as HTMLButtonElement;
 const downloadBtn = document.getElementById('download') as HTMLButtonElement;
 const seedInput = document.getElementById('seed') as HTMLInputElement;
@@ -62,6 +62,7 @@ function openModal(opts: { message: string; ok?: string; input?: boolean; initia
   });
 }
 
+// Sets CSS width/height only (contain-style scaling). Never touches canvas.width/canvas.height.
 function fitCanvas(): void {
   if (!canvas.width || !canvas.height) return;
   const s = getComputedStyle(canvasPaneEl);
@@ -86,13 +87,20 @@ function b64decode(s: string): string {
 }
 
 function updateUrl(): void {
-  const params = new URLSearchParams({ seed: seedInput.value, script: b64encode(codeArea.value) });
+  const params = new URLSearchParams({ seed: seedInput.value, script: b64encode(getScript()) });
   history.replaceState(null, '', '?' + params.toString());
 }
 
+// Initialise editor before reading URL params so setScript works immediately.
+initEditor(document.getElementById('editor')!, scheduleRun, showHelpTab);
+
 const _initParams = new URLSearchParams(location.search);
 seedInput.value = _initParams.get('seed') ?? String(randomSeed());
-if (_initParams.has('script')) codeArea.value = b64decode(_initParams.get('script')!);
+if (_initParams.has('script')) {
+  setScript(b64decode(_initParams.get('script')!));
+} else {
+  setScript('bitcrush 4\nnoise -24');
+}
 
 let errorTimer: number | null = null;
 
@@ -113,7 +121,7 @@ async function runImage(immediate = false): Promise<void> {
     const seed = parseInt(seedInput.value, 10) >>> 0;
     const rand = mulberry32(seed);
     const image = new GlitchBuffer(originalBuffer.slice(), imgWidth, imgHeight, rand);
-    await runGlitchsp(codeArea.value, image, rand);
+    await runGlitchsp(getScript(), image, rand);
     const rgba = glitchToRgba(image.data, image.width, image.height);
     canvas.width = image.width;
     canvas.height = image.height;
@@ -130,41 +138,13 @@ async function runImage(immediate = false): Promise<void> {
   }
 }
 
-let runTimer: number | null = null;
-
-codeArea.addEventListener('input', () => {
+function scheduleRun(): void {
   if (runTimer !== null) clearTimeout(runTimer);
   runTimer = window.setTimeout(() => {
     runTimer = null;
-    if (tryParse(codeArea.value)) runImage();
+    if (tryParse(getScript())) runImage();
   }, 300);
-});
-
-codeArea.addEventListener('keydown', (e: KeyboardEvent) => {
-  if ((e.ctrlKey || e.metaKey) && e.key === '/') {
-    e.preventDefault();
-    const val = codeArea.value;
-    const selStart = codeArea.selectionStart;
-    const selEnd = codeArea.selectionEnd;
-
-    // Expand to full lines
-    const lineStart = val.lastIndexOf('\n', selStart - 1) + 1;
-    let adjustedEnd = selEnd;
-    if (selEnd > selStart && val[selEnd - 1] === '\n') adjustedEnd--;
-    const nextNl = val.indexOf('\n', adjustedEnd);
-    const lineEnd = nextNl === -1 ? val.length : nextNl;
-
-    const lines = val.slice(lineStart, lineEnd).split('\n');
-    const allCommented = lines.every(l => /^#/.test(l));
-    const newLines = lines.map(l => allCommented ? l.replace(/^#\s?/, '') : '# ' + l);
-    const newBlock = newLines.join('\n');
-
-    codeArea.value = val.slice(0, lineStart) + newBlock + val.slice(lineEnd);
-    codeArea.selectionStart = selStart;
-    codeArea.selectionEnd = selEnd + (newBlock.length - (lineEnd - lineStart));
-    codeArea.dispatchEvent(new Event('input'));
-  }
-});
+}
 
 newSeedBtn.addEventListener('click', () => {
   seedInput.value = String(randomSeed());
@@ -196,7 +176,7 @@ fileInput.addEventListener('change', () => {
 runBtn.addEventListener('click', () => runImage(true));
 
 // Track the code that was last intentionally loaded so we can detect edits.
-let lastLoadedCode = codeArea.value;
+let lastLoadedCode = getScript();
 // Track the select's committed value so we can restore it on cancel.
 let currentSelectValue = '';
 
@@ -211,8 +191,8 @@ presetsSelect.addEventListener('change', async () => {
     return;
   }
 
-  if (codeArea.value !== lastLoadedCode) {
-    const ok = await openModal({ message: 'Load preset and discard current changes?', ok: 'load preset' });
+  if (getScript() !== lastLoadedCode) {
+    const ok = await openModal({ message: 'load preset and discard current changes?', ok: 'load preset' });
     if (ok === null) {
       presetsSelect.value = currentSelectValue;
       return;
@@ -231,27 +211,27 @@ presetsSelect.addEventListener('change', async () => {
   }
   if (code !== undefined) {
     history.pushState(null, '', location.href);
-    codeArea.value = code;
-    lastLoadedCode = code;
+    setScript(code);
+    lastLoadedCode = getScript();
     currentSelectValue = val;
-    codeArea.dispatchEvent(new Event('input'));
+    scheduleRun();
   }
 });
 
 savePresetBtn.addEventListener('click', async () => {
-  const name = await openModal({ message: 'Preset name:', ok: 'save', input: true });
+  const name = await openModal({ message: 'preset name:', ok: 'save', input: true });
   if (!name) return;
   const userPresets = loadUserPresets();
   const existing = userPresets.findIndex(p => p.name === name);
   if (existing >= 0) {
-    userPresets[existing].code = codeArea.value;
+    userPresets[existing].code = getScript();
   } else {
-    userPresets.push({ name, code: codeArea.value });
+    userPresets.push({ name, code: getScript() });
   }
   saveUserPresets(userPresets);
   const savedVal = 'user:' + name;
   buildPresetSelect(presetsSelect, savedVal);
-  lastLoadedCode = codeArea.value;
+  lastLoadedCode = getScript();
   currentSelectValue = savedVal;
   deletePresetBtn.disabled = false;
 });
@@ -260,7 +240,7 @@ deletePresetBtn.addEventListener('click', async () => {
   const val = presetsSelect.value;
   if (!val.startsWith('user:')) return;
   const name = val.slice('user:'.length);
-  const ok = await openModal({ message: `Delete preset "${name}"?`, ok: 'delete' });
+  const ok = await openModal({ message: `delete preset "${name}"?`, ok: 'delete' });
   if (ok === null) return;
   const userPresets = loadUserPresets().filter(p => p.name !== name);
   saveUserPresets(userPresets);
@@ -311,8 +291,8 @@ window.addEventListener('popstate', () => {
   const script = params.get('script');
   if (seed !== null) seedInput.value = seed;
   if (script !== null) {
-    codeArea.value = b64decode(script);
-    lastLoadedCode = codeArea.value;
+    setScript(b64decode(script));
+    lastLoadedCode = getScript();
     presetsSelect.value = '';
     currentSelectValue = '';
     deletePresetBtn.disabled = true;

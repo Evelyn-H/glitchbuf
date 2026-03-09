@@ -1,0 +1,151 @@
+/* ── Script editor ─────────────────────────────────────────────────────────── */
+
+#editor {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  padding: 4px;
+}
+
+.editor-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.drag-handle {
+  cursor: grab;
+  color: var(--fg-dim);
+  padding: 4px 2px;
+  user-select: none;
+  touch-action: none;
+  flex-shrink: 0;
+  opacity: 0.4;
+}
+
+.editor-line:hover .drag-handle {
+  opacity: 1;
+}
+
+.line-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.line-display,
+.line-edit {
+  padding: 1px 0;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+  min-height: 1.5em;
+  outline: none;
+}
+
+.line-display {
+  cursor: text;
+}
+
+
+/* Token styles — display mode only */
+.tok-effect {
+  cursor: pointer;
+  border-bottom: 1px dotted var(--fg-dim);
+}
+
+.tok-effect:hover {
+  border-bottom-color: var(--fg);
+}
+
+.tok-num {
+  cursor: ew-resize;
+  color: #8ab4d4;
+}
+
+.tok-num:hover {
+  color: var(--accent);
+}
+
+.tok-paren {
+  color: var(--fg-dim);
+}
+
+.tok-comment {
+  color: var(--fg-dim);
+  font-style: italic;
+}
+
+.editor-line.is-dragging {
+  opacity: 0.4;
+}
+
+.editor-line.drag-over {
+  border-top: 2px solid var(--fg);
+}
+
+/* Raw edit mode — replaces block list with a single textarea */
+.raw-edit {
+  flex: 1;
+  resize: none;
+  background: transparent;
+  border: none;
+  outline: none;
+  line-height: 1.5;
+}
+
+/* ── Effect param modal ────────────────────────────────────────────────────── */
+
+#effect-dialog {
+  min-width: 20rem;
+  max-width: min(32rem, 90vw);
+}
+
+#effect-dialog-name {
+  font-weight: bold;
+  margin: 0 0 4px;
+}
+
+#effect-dialog-desc {
+  color: var(--fg-dim);
+  margin: 0 0 12px;
+  white-space: pre-line;
+}
+
+.param-row {
+  display: grid;
+  grid-template-columns: 6rem 1fr 4rem;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.param-row label {
+  color: var(--fg-dim);
+  font-size: var(--label-size);
+}
+
+.param-row input[type=range] {
+  accent-color: var(--fg);
+}
+
+.param-row input[type=number] {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  padding: 2px 4px;
+  /* make sure the inc/dec buttons are flush with edge */
+  padding-right: 0px;
+  width: 100%;
+  text-align: left;
+}
+
+/* ── Mobile ────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  #editor {
+    min-height: 8rem;
+  }
+}
