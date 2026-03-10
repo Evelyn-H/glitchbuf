@@ -20,13 +20,14 @@
     - neat but potentially a security issue
   - better error handling in the parsing
   - perhaps an op that allows the user to do infix mathametical operations? (like (calc 6 - (rand)\*3), instead of (- 6 (\* (rand) 3)))
+  - scramble function - randomizes the current script layers
+  - toggle layer function - switches the layer effect on/off by double-clicking the handle, maybe also a global on-off so that one can admire their destruction
 
 ## todo
- - fix loading a preset that was already selected but then code was changed
  - feedback form (and perhaps donation page? if i wanna be bold)
- - make rand optionally take a second param to set min/max instead of just max
  - plus button to add a line with a new effect (prefill defaults and have effect dropdown to avoid typing)
    - also let this insert a a whole preset perhaps
+ - add support for leaving out a parameter in an effect dialog (e.g. for leaving the second field blank for a `resize` effect)
 
 
 ## ui redesign for mobile (and less confusing desktop)
