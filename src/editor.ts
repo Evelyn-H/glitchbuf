@@ -1,4 +1,7 @@
-/// <reference path="presets.ts" />
+import { parseBlock, splitIntoBlocks } from './glitchsp';
+import type { ParseNode } from './glitchsp';
+import { OPS, OP_MAP, OpKind, ParamType } from './ops';
+import type { OpDef, ParamDef } from './ops';
 
 // ── Display tokenizer ─────────────────────────────────────────────────────────
 
@@ -905,7 +908,7 @@ function renderEditor(): void {
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
-function initEditor(
+export function initEditor(
   el: HTMLElement,
   onChange: () => void,
   openHelp?: (tab: string) => void
@@ -949,11 +952,11 @@ function initEditor(
   renderEditor();
 }
 
-function getScript(): string {
+export function getScript(): string {
   return _editorLines.join('\n');
 }
 
-function setScript(code: string): void {
+export function setScript(code: string): void {
   const blocks = splitIntoBlocks(code).filter(b => b.trim().length > 0);
   // Always keep at least one block so the editor has an editable line.
   _editorLines = blocks.length > 0 ? blocks : [''];

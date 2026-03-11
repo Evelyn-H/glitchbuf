@@ -1,8 +1,10 @@
-/// <reference path="editor.ts" />
-
-declare const HELP_MD: string;
-declare const GLITCHSP_MD: string;
-declare const EFFECTS_MD: string;
+import { initEditor, getScript, setScript } from './editor';
+import { mulberry32, parse, runGlitchsp } from './glitchsp';
+import { GlitchBuffer, rgbaToGlitch, glitchToRgba } from './effects';
+import { BUILT_IN_PRESETS, loadUserPresets, saveUserPresets, buildPresetSelect } from './presets';
+import HELP_MD from '../HELP.md?raw';
+import GLITCHSP_MD from '../GLITCHSP.md?raw';
+import EFFECTS_MD from '../EFFECTS.md?raw';
 
 let originalBuffer: Uint8Array | null = null;
 let imgWidth = 0;

@@ -1,9 +1,10 @@
-/// <reference path="ops.ts" />
+import type { IGlitchBuffer, Percentage, Wet } from './effects';
+import { OPS } from './ops';
 
 // ── PRNG ───────────────────────────────────────────────────────────────────
 // Mulberry32 — fast, good quality, fully seedable 32-bit PRNG.
 
-function mulberry32(seed: number): () => number {
+export function mulberry32(seed: number): () => number {
   let s = seed >>> 0;
   return () => {
     s = (s + 0x6D2B79F5) >>> 0;
@@ -15,9 +16,9 @@ function mulberry32(seed: number): () => number {
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
-type GlitchFn = (...args: GlitchVal[]) => GlitchVal | Promise<GlitchVal>;
-type GlitchVal = number | string | boolean | null | GlitchVal[] | IGlitchBuffer | GlitchFn;
-type BufCell = { val: IGlitchBuffer };
+export type GlitchFn = (...args: GlitchVal[]) => GlitchVal | Promise<GlitchVal>;
+export type GlitchVal = number | string | boolean | null | GlitchVal[] | IGlitchBuffer | GlitchFn;
+export type BufCell = { val: IGlitchBuffer };
 
 // ── Source-spanning parse tree ─────────────────────────────────────────────
 // ParseNode carries character spans relative to the source string it was
@@ -26,7 +27,7 @@ type BufCell = { val: IGlitchBuffer };
 
 interface Span { start: number; end: number; }
 
-type ParseNode =
+export type ParseNode =
   | { kind: 'atom'; raw: string; value: GlitchVal; span: Span }
   | { kind: 'list'; children: ParseNode[]; span: Span; bare?: boolean };
 
@@ -63,7 +64,7 @@ function _parseNode(toks: Array<{ text: string; start: number; end: number }>): 
 // Parse a single block string into a ParseNode. Bare forms (no outer parens)
 // are wrapped in a synthetic list so callers always get a list with the op
 // name as children[0] and args as children[1..].
-function parseBlock(src: string): ParseNode {
+export function parseBlock(src: string): ParseNode {
   const toks = tokenizePos(src);
   if (!toks.length) return { kind: 'list', children: [], span: { start: 0, end: src.length }, bare: true };
   if (toks[0].text === '(' || toks[0].text === '[') return _parseNode(toks);
@@ -83,7 +84,7 @@ function parseNodeToGlitchVal(node: ParseNode): GlitchVal {
 // the next token at depth 0.
 // Bare single-token forms like `invert` become [invert] lists, which evaluate
 // as zero-arg calls — so bare ops work without any special-casing in evaluate().
-function parse(src: string): ParseNode[] {
+export function parse(src: string): ParseNode[] {
   const result: ParseNode[] = [];
   const toks = tokenizePos(src);
   while (toks.length > 0) {
@@ -121,7 +122,7 @@ function parseAtom(token: string): GlitchVal {
 
 // ── Environment ────────────────────────────────────────────────────────────
 
-class GlitchEnv {
+export class GlitchEnv {
   private map = new Map<string, GlitchVal>();
   constructor(private parent?: GlitchEnv) { }
 
@@ -138,7 +139,7 @@ class GlitchEnv {
 
 // ── Evaluator ──────────────────────────────────────────────────────────────
 
-async function evaluate(expr: GlitchVal, env: GlitchEnv, buf: BufCell): Promise<GlitchVal> {
+export async function evaluate(expr: GlitchVal, env: GlitchEnv, buf: BufCell): Promise<GlitchVal> {
   if (typeof expr === 'number' || typeof expr === 'boolean' || expr === null) return expr;
   if (typeof expr === 'function') return expr;
   if (typeof expr === 'string') return env.get(expr);
@@ -208,7 +209,7 @@ async function evaluate(expr: GlitchVal, env: GlitchEnv, buf: BufCell): Promise<
 
   if (head === 'stride') {
     // (stride len skip body) — apply body to chunks of len (0–100), skipping skip chunks between each
-    const chunkLen = Math.max(0.1, await evaluate(rest[0], env, buf) as number);
+    const chunkLen = Math.max(0.001, await evaluate(rest[0], env, buf) as number);
     const skip = Math.max(0, Math.floor(await evaluate(rest[1], env, buf) as number));
     const body = rest[2];
     const top = buf.val;
@@ -257,7 +258,7 @@ async function evaluate(expr: GlitchVal, env: GlitchEnv, buf: BufCell): Promise<
 // Buffer ops close over `buf` — they never take a buffer argument.
 // select is a special form above, not a function.
 
-function makeGlitchEnv(buf: BufCell, rand: () => number): GlitchEnv {
+export function makeGlitchEnv(buf: BufCell, rand: () => number): GlitchEnv {
   const env = new GlitchEnv();
 
   // Register all buffer ops from OPS (those with an invoke function)
@@ -314,7 +315,7 @@ function makeGlitchEnv(buf: BufCell, rand: () => number): GlitchEnv {
 // Split raw source into top-level block strings, preserving comments (unlike
 // parse()). Used by the editor to split source into draggable rows.
 
-function splitIntoBlocks(src: string): string[] {
+export function splitIntoBlocks(src: string): string[] {
   const rawLines = src.split('\n');
   const blocks: string[] = [];
   let currentLines: string[] = [];
@@ -339,7 +340,7 @@ function splitIntoBlocks(src: string): string[] {
 // ── Entry point ────────────────────────────────────────────────────────────
 
 
-async function runGlitchsp(code: string, image: IGlitchBuffer, rand: () => number): Promise<void> {
+export async function runGlitchsp(code: string, image: IGlitchBuffer, rand: () => number): Promise<void> {
   const buf: BufCell = { val: image };
   const env = makeGlitchEnv(buf, rand);
   for (const node of parse(code)) await evaluate(parseNodeToGlitchVal(node), env, buf);

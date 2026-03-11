@@ -1,22 +1,22 @@
-declare const Tone: any;
+import { Offline, Player, ToneAudioBuffer, Freeverb, Phaser, FrequencyShifter, Vibrato, Chebyshev, AutoWah, FeedbackDelay, PitchShift } from 'tone';
 
 // ── Newtypes for numeric types ────────────────────────────────────────────────────
 
 declare const _pct: unique symbol;
-type Percentage = number & { readonly [_pct]: void };  // 0–100, fraction of buffer length/dimensions
+export type Percentage = number & { readonly [_pct]: void };  // 0–100, fraction of buffer length/dimensions
 
 declare const _db: unique symbol;
-type Decibels = number & { readonly [_db]: void };     // amplitude on dB scale
+export type Decibels = number & { readonly [_db]: void };     // amplitude on dB scale
 
 declare const _wet: unique symbol;
-type Wet = number & { readonly [_wet]: void };         // 0–1 linear mix ratio
+export type Wet = number & { readonly [_wet]: void };         // 0–1 linear mix ratio
 
 declare const _hz: unique symbol;
-type Frequency = number & { readonly [_hz]: void };    // Hz
+export type Frequency = number & { readonly [_hz]: void };    // Hz
 
 // ── Interface ───────────────────────────────────────────────────────────────
 
-interface IGlitchBuffer {
+export interface IGlitchBuffer {
   width: number;
   height: number;
   bitcrush(bits: number): this;
@@ -53,7 +53,7 @@ interface IGlitchBuffer {
 
 // ── Image conversion ────────────────────────────────────────────────────────
 
-function rgbaToGlitch(data: Uint8ClampedArray, width: number, height: number): Uint8Array {
+export function rgbaToGlitch(data: Uint8ClampedArray, width: number, height: number): Uint8Array {
   const buf = new Uint8Array(width * height * 3);
   for (let i = 0; i < width * height; i++) {
     buf[i * 3] = data[i * 4];     // R
@@ -63,7 +63,7 @@ function rgbaToGlitch(data: Uint8ClampedArray, width: number, height: number): U
   return buf;
 }
 
-function glitchToRgba(buf: Uint8Array, width: number, height: number): Uint8ClampedArray<ArrayBuffer> {
+export function glitchToRgba(buf: Uint8Array, width: number, height: number): Uint8ClampedArray<ArrayBuffer> {
   const out = new Uint8ClampedArray(new ArrayBuffer(width * height * 4));
   for (let i = 0; i < width * height; i++) {
     out[i * 4] = buf[i * 3];     // R
@@ -75,24 +75,24 @@ function glitchToRgba(buf: Uint8Array, width: number, height: number): Uint8Clam
 }
 
 // Convert a 0–100 percentage to an integer index within a buffer of given length.
-function pct(p: number, len: number): number {
+export function pct(p: number, len: number): number {
   return Math.floor(p / 100 * len);
 }
 
 // Round a float to the nearest integer and clamp to the byte range [0, 255].
-function clamp8(v: number): number {
+export function clamp8(v: number): number {
   const r = (v + 0.5) | 0;
   return r < 0 ? 0 : r > 255 ? 255 : r;
 }
 
 // Convert a decibel value to a linear amplitude multiplier.
-function dbToLin(db: number): number {
+export function dbToLin(db: number): number {
   return Math.pow(10, db / 20);
 }
 
 // ── GlitchBuffer ────────────────────────────────────────────────────────────
 
-class GlitchBuffer implements IGlitchBuffer {
+export class GlitchBuffer implements IGlitchBuffer {
   data: Uint8Array;
   width: number;
   height: number;
@@ -129,7 +129,7 @@ class GlitchBuffer implements IGlitchBuffer {
     return this;
   }
 
-  // Shared pipeline for all Tone.js effects: bytes↔floats + Tone.Offline render.
+  // Shared pipeline for all Tone.js effects: bytes↔floats + Offline render.
   // buildFx is called inside the Offline context and must return an unconnected Tone node.
   private async toneProcess(extraDuration: number, buildFx: () => any): Promise<this> {
     const sampleRate = 44100;
@@ -142,9 +142,9 @@ class GlitchBuffer implements IGlitchBuffer {
     const srcBuffer = new AudioBuffer({ numberOfChannels: 1, length: len, sampleRate });
     srcBuffer.copyToChannel(samples, 0);
 
-    const rendered = await Tone.Offline(({ transport }: any) => {
+    const rendered = await Offline(({ transport }: any) => {
       const fx = buildFx().toDestination();
-      const player = new Tone.Player(new Tone.ToneAudioBuffer(srcBuffer));
+      const player = new Player(new ToneAudioBuffer(srcBuffer));
       player.connect(fx);
       player.start(0);
       transport.start(0);
@@ -159,7 +159,7 @@ class GlitchBuffer implements IGlitchBuffer {
   async reverb(roomSize: number, dampening: Frequency): Promise<this> {
     // Uses Freeverb directly (not Tone.Reverb) so the IR is deterministic — Tone.Reverb
     // generates a random IR internally, breaking reproducibility across runs.
-    return this.toneProcess(1.0, () => new Tone.Freeverb({ roomSize, dampening }));
+    return this.toneProcess(1.0, () => new Freeverb({ roomSize, dampening }));
   }
 
   reverse(): this {
@@ -399,42 +399,42 @@ class GlitchBuffer implements IGlitchBuffer {
   // Tone.js Phaser — all-pass filter cascade swept by an LFO.
   // frequency: LFO rate in Hz, octaves: sweep width, baseFrequency: center Hz.
   async phaser(frequency: Frequency, octaves: number, baseFrequency: Frequency): Promise<this> {
-    return this.toneProcess(0.1, () => new Tone.Phaser({ frequency, octaves, baseFrequency }));
+    return this.toneProcess(0.1, () => new Phaser({ frequency, octaves, baseFrequency }));
   }
 
   // Tone.js FrequencyShifter — shifts all frequencies up or down by a fixed Hz amount.
   // frequency: Hz shift (positive = up, negative = down).
   async frequencyShift(frequency: Frequency): Promise<this> {
-    return this.toneProcess(0.1, () => new Tone.FrequencyShifter({ frequency }));
+    return this.toneProcess(0.1, () => new FrequencyShifter({ frequency }));
   }
 
   // Tone.js Vibrato — LFO pitch wobble via delay modulation.
   // frequency: LFO rate in Hz, depth: modulation amount 0–1.
   async vibrato(frequency: Frequency, depth: number): Promise<this> {
-    return this.toneProcess(0.1, () => new Tone.Vibrato({ frequency, depth }));
+    return this.toneProcess(0.1, () => new Vibrato({ frequency, depth }));
   }
 
   // Tone.js Chebyshev waveshaper — adds nth-order harmonics. order 1 = clean, ~50 = harsh.
   async chebyshev(order: number): Promise<this> {
     const n = order >= 0 ? 2 * order + 1 : -2 * order;
-    return this.toneProcess(0.1, () => new Tone.Chebyshev({ order: n }));
+    return this.toneProcess(0.1, () => new Chebyshev({ order: n }));
   }
 
   // Tone.js AutoWah — envelope follower sweeps a bandpass filter.
   // baseFrequency: center Hz, octaves: sweep range, sensitivity: follower threshold dB.
   async autowah(baseFrequency: Frequency, octaves: number, sensitivity: Decibels): Promise<this> {
-    return this.toneProcess(0.1, () => new Tone.AutoWah({ baseFrequency, octaves, sensitivity }));
+    return this.toneProcess(0.1, () => new AutoWah({ baseFrequency, octaves, sensitivity }));
   }
 
   // Tone.js FeedbackDelay — delay with a recirculating feedback loop.
   // delayTime: 0–100% of buffer length converted to seconds, feedback: 0–1.
   async feedbackDelay(delayTime: Percentage, feedback: number): Promise<this> {
     const delaySeconds = pct(delayTime, this.data.length) / 44100;
-    return this.toneProcess(2.0, () => new Tone.FeedbackDelay({ delayTime: delaySeconds, feedback }));
+    return this.toneProcess(2.0, () => new FeedbackDelay({ delayTime: delaySeconds, feedback }));
   }
 
   // Tone.js PitchShift — time-preserving pitch shift. semitones: e.g. -12 to 12.
   async pitchShift(semitones: number): Promise<this> {
-    return this.toneProcess(0.5, () => new Tone.PitchShift(semitones)); // extra headroom for lookahead
+    return this.toneProcess(0.5, () => new PitchShift(semitones)); // extra headroom for lookahead
   }
 }

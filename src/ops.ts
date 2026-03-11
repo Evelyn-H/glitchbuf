@@ -1,21 +1,21 @@
-/// <reference path="effects.ts" />
+import type { IGlitchBuffer, Percentage, Decibels, Frequency } from './effects';
 
 // ── Op definitions ────────────────────────────────────────────────────────────
 // Single source of truth for every effect: name, description, param sliders,
 // and the invoke binding used by makeGlitchEnv in glitchsp.ts.
 
-const enum ParamType { float = 'float', int = 'int', log = 'log' }
+export const enum ParamType { float = 'float', int = 'int', log = 'log' }
 
-interface ParamDef {
+export interface ParamDef {
   name: string;
   type: ParamType;
   min: number; max: number; default: number;
   step?: number; unit?: string;
 }
 
-const enum OpKind { audio = 'audio', byte = 'byte', pixel = 'pixel', image = 'image', wrap = 'wrap' }
+export const enum OpKind { audio = 'audio', byte = 'byte', pixel = 'pixel', image = 'image', wrap = 'wrap' }
 
-interface OpDef {
+export interface OpDef {
   name: string;
   desc: string;
   kind?: OpKind;  // set on all invoke-able ops; undefined for special forms
@@ -24,7 +24,7 @@ interface OpDef {
   invoke?: (buf: IGlitchBuffer, ...args: any[]) => any;
 }
 
-const OPS: OpDef[] = [
+export const OPS: OpDef[] = [
   {
     name: 'bitcrush', desc: 'reduce bit depth of each byte.', kind: OpKind.byte, params: [
       { name: 'bits', type: ParamType.int, min: 1, max: 8, default: 4, step: 1 },
@@ -268,4 +268,4 @@ const OPS: OpDef[] = [
   },
 ];
 
-const OP_MAP = new Map(OPS.map(op => [op.name, op]));
+export const OP_MAP = new Map(OPS.map(op => [op.name, op]));

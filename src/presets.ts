@@ -1,8 +1,6 @@
-/// <reference path="glitchsp.ts" />
+export interface Preset { name: string; code: string; }
 
-interface Preset { name: string; code: string; }
-
-const BUILT_IN_PRESETS: Preset[] = [
+export const BUILT_IN_PRESETS: Preset[] = [
   {
     name: 'chromatic aberration', code: `\
 transpose R (randn 2) (randn 2)
@@ -87,16 +85,16 @@ stride 2 1 (do
 
 
 
-function loadUserPresets(): Preset[] {
+export function loadUserPresets(): Preset[] {
   try { return JSON.parse(localStorage.getItem('glitchbuf_presets') ?? '[]'); }
   catch { return []; }
 }
 
-function saveUserPresets(presets: Preset[]): void {
+export function saveUserPresets(presets: Preset[]): void {
   localStorage.setItem('glitchbuf_presets', JSON.stringify(presets));
 }
 
-function buildPresetSelect(select: HTMLSelectElement, selectedName?: string): void {
+export function buildPresetSelect(select: HTMLSelectElement, selectedName?: string): void {
   select.innerHTML = '<option value="">— select preset —</option>';
 
   const builtInGroup = document.createElement('optgroup');
