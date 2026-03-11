@@ -11,6 +11,9 @@
     "vite": "^7.3.1"
   },
   "dependencies": {
+    "png-chunk-text": "^1.0.0",
+    "png-chunks-encode": "^1.0.0",
+    "png-chunks-extract": "^1.0.0",
     "tone": "^15.5.6"
   }
 }

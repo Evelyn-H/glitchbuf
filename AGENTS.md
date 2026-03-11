@@ -32,6 +32,7 @@ src/effects.ts      — IGlitchBuffer interface, GlitchBuffer class (all ops), r
 src/ops.ts          — OpDef/OPS/OP_MAP: name, desc, ParamDef[], invoke binding for every effect
 src/glitchsp.ts     — PRNG, tokenizer, parser, GlitchEnv, evaluate, makeGlitchEnv, runGlitchsp, splitIntoBlocks
 src/editor.ts       — renderEditor, drag-and-drop, effect modal, getScript/setScript/initEditor
+src/png-meta.ts     — writePngMeta/readPngMeta: embed/extract seed, script, original image in PNG chunks
 src/main.ts         — DOM wiring, runImage, fitCanvas, event listeners (UI only)
 dist/               — build output: glitchbuf.js + copies of index.html and style.css
 README.md           — project intro, setup/build instructions, links to help docs

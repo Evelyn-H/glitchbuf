@@ -2,6 +2,7 @@ import { initEditor, getScript, setScript } from './editor';
 import { mulberry32, parse, runGlitchsp } from './glitchsp';
 import { GlitchBuffer, rgbaToGlitch, glitchToRgba } from './effects';
 import { BUILT_IN_PRESETS, loadUserPresets, saveUserPresets, buildPresetSelect } from './presets';
+import { writePngMeta, readPngMeta, PngMeta } from './png-meta';
 import HELP_MD from '../HELP.md?raw';
 import GLITCHSP_MD from '../GLITCHSP.md?raw';
 import EFFECTS_MD from '../EFFECTS.md?raw';
@@ -127,6 +128,33 @@ function showError(msg: string, immediate: boolean): void {
   }
 }
 
+function loadImageFromBlob(blob: Blob): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      imgWidth = img.naturalWidth;
+      imgHeight = img.naturalHeight;
+      canvas.width = imgWidth;
+      canvas.height = imgHeight;
+      ctx.drawImage(img, 0, 0);
+      const imageData = ctx.getImageData(0, 0, imgWidth, imgHeight);
+      originalBuffer = rgbaToGlitch(imageData.data, imgWidth, imgHeight);
+      URL.revokeObjectURL(url);
+      resolve();
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('failed to load image')); };
+    img.src = url;
+  });
+}
+
+function originalToPngBlob(): Promise<Blob> {
+  const rgba = glitchToRgba(originalBuffer!, imgWidth, imgHeight);
+  const off = new OffscreenCanvas(imgWidth, imgHeight);
+  off.getContext('2d')!.putImageData(new ImageData(rgba, imgWidth, imgHeight), 0, 0);
+  return off.convertToBlob({ type: 'image/png' });
+}
+
 async function runImage(immediate = false): Promise<void> {
   updateUrl();
   if (!originalBuffer) return;
@@ -169,23 +197,25 @@ newSeedBtn.addEventListener('click', () => {
 fileInput.addEventListener('change', () => {
   const file = fileInput.files?.[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    const img = new Image();
-    img.onload = () => {
-      imgWidth = img.naturalWidth;
-      imgHeight = img.naturalHeight;
-      canvas.width = imgWidth;
-      canvas.height = imgHeight;
-      ctx.drawImage(img, 0, 0);
-      const imageData = ctx.getImageData(0, 0, imgWidth, imgHeight);
-      originalBuffer = rgbaToGlitch(imageData.data, imgWidth, imgHeight);
-      errorPre.textContent = '';
-      runImage(true);
-    };
-    img.src = reader.result as string;
-  };
-  reader.readAsDataURL(file);
+  file.arrayBuffer().then(async buf => {
+    let meta: PngMeta = {};
+    try { meta = readPngMeta(buf); } catch { /* not a png or no metadata */ }
+    try {
+      await loadImageFromBlob(meta.original ?? file);
+    } catch {
+      if (meta.original) {
+        // embedded original failed; fall back to the file itself
+        await loadImageFromBlob(file);
+      } else {
+        showError('failed to load image', true);
+        return;
+      }
+    }
+    errorPre.textContent = '';
+    if (meta.seed !== undefined) seedInput.value = meta.seed;
+    if (meta.script !== undefined) setScript(b64decode(meta.script));
+    runImage(true);
+  }).catch(e => showError(String(e), true));
 });
 
 // Track the code that was last intentionally loaded so we can detect edits.
@@ -296,16 +326,19 @@ deletePresetBtn.addEventListener('click', async () => {
   deletePresetBtn.disabled = true;
 });
 
-downloadBtn.addEventListener('click', () => {
-  canvas.toBlob(blob => {
-    if (!blob) return;
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'glitchbuf.png';
-    a.click();
-    URL.revokeObjectURL(url);
-  });
+downloadBtn.addEventListener('click', async () => {
+  if (!originalBuffer) return;
+  const [outputBlob, origBlob] = await Promise.all([
+    new Promise<Blob>(res => canvas.toBlob(b => res(b!))),
+    originalToPngBlob(),
+  ]);
+  const enriched = await writePngMeta(outputBlob, seedInput.value, b64encode(getScript()), origBlob);
+  const url = URL.createObjectURL(enriched);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'glitchbuf.png';
+  a.click();
+  URL.revokeObjectURL(url);
 });
 
 const helpTabContents: Record<string, string> = { app: HELP_MD, language: GLITCHSP_MD, effects: EFFECTS_MD };
