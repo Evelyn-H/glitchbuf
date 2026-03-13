@@ -94,33 +94,3 @@ export function saveUserPresets(presets: Preset[]): void {
   localStorage.setItem('glitchbuf_presets', JSON.stringify(presets));
 }
 
-export function buildPresetSelect(select: HTMLSelectElement, selectedName?: string): void {
-  select.innerHTML = '<option value="">— select preset —</option>';
-
-  const builtInGroup = document.createElement('optgroup');
-  builtInGroup.label = 'built-in';
-  for (const p of BUILT_IN_PRESETS) {
-    const opt = document.createElement('option');
-    opt.value = 'builtin:' + p.name;
-    opt.textContent = p.name;
-    builtInGroup.appendChild(opt);
-  }
-  select.appendChild(builtInGroup);
-
-  const userPresets = loadUserPresets();
-  if (userPresets.length > 0) {
-    const userGroup = document.createElement('optgroup');
-    userGroup.label = 'saved';
-    for (const p of userPresets) {
-      const opt = document.createElement('option');
-      opt.value = 'user:' + p.name;
-      opt.textContent = p.name;
-      userGroup.appendChild(opt);
-    }
-    select.appendChild(userGroup);
-  }
-
-  if (selectedName) {
-    select.value = selectedName;
-  }
-}

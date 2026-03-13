@@ -2,9 +2,11 @@
 
 ## 1d
   - something to get some solid blocks of color? lots of ways to break things now but not a ton to add new color/shapes
+  - lowpass / highpass / bandpass
 
 ## 2d:
   - dithering
+  - jpeg-ify
 
 ## other
   - any effects i can get easily from the canvas api?
@@ -22,12 +24,18 @@
   - perhaps an op that allows the user to do infix mathametical operations? (like (calc 6 - (rand)\*3), instead of (- 6 (\* (rand) 3)))
   - scramble function - randomizes the current script layers
   - toggle layer function - switches the layer effect on/off by double-clicking the handle, maybe also a global on-off so that one can admire their destruction
+  - for wrapped effects, add a `...` button after the effect that lets you add another effect wrapped in a `do` block. this would make it easier to have chains of effects in a wrapped block, which is often desireable.
 
 ## todo
- - feedback form (and perhaps donation page? if i wanna be bold)
- - plus button to add a line with a new effect (prefill defaults and have effect dropdown to avoid typing)
-   - also let this insert a a whole preset perhaps
- - add support for leaving out a parameter in an effect dialog (e.g. for leaving the second field blank for a `resize` effect)
+  - feedback form (and perhaps donation page? if i wanna be bold)
+  - plus button to add a line with a new effect (prefill defaults and have effect dropdown to avoid typing)
+    - also let this insert a a whole preset perhaps
+  - add support for leaving out a parameter in an effect dialog (e.g. for leaving the second field blank for a `resize` effect)
+  - add back button or something to undo/go back in browser histroy
+    - currently the fact that browser history saves state before loading a preset is too opaque
+    - maybe also push changes on block blur too
+    - and perhaps add ctrl-z shortcut to editor that uses browser history
+  - add more optional params (default to null) for audio effects where appropriate
 
 
 ## ui redesign for mobile (and less confusing desktop)

@@ -1,0 +1,232 @@
+<script lang="ts">
+  import { onMount } from 'svelte';
+  import { mulberry32, parse, runGlitchsp } from '../glitchsp';
+  import { GlitchBuffer, rgbaToGlitch, glitchToRgba } from '../effects';
+  import { b64encode } from '../utils';
+
+  export interface PreviewApi {
+    loadImage(blob: Blob): Promise<void>;
+    runImage(immediate?: boolean): Promise<void>;
+    showError(msg: string, immediate?: boolean): void;
+    getBlobs(): Promise<{ output: Blob; orig: Blob } | null>;
+  }
+
+  let { seed, script, onready }: {
+    seed: string;
+    script: string;
+    onready?: (api: PreviewApi) => void;
+  } = $props();
+
+  let originalBuffer: Uint8Array | null = null;
+  let imgWidth = 0;
+  let imgHeight = 0;
+  let runTimer: number | null = null;
+  let errorTimer: number | null = null;
+
+  let hasImage = $state(false);
+  let loading = $state(false);
+  let errorText = $state('');
+
+  let paneEl: HTMLDivElement;
+  let canvasEl: HTMLCanvasElement;
+  let ctx: CanvasRenderingContext2D;
+
+  function updateUrl(): void {
+    const params = new URLSearchParams({ seed, script: b64encode(script) });
+    history.replaceState(null, '', '?' + params.toString());
+  }
+
+  function fitCanvas(): void {
+    if (!canvasEl.width || !canvasEl.height) return;
+    const s = getComputedStyle(paneEl);
+    const pw = paneEl.clientWidth - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight);
+    const ph = paneEl.clientHeight - parseFloat(s.paddingTop) - parseFloat(s.paddingBottom);
+    const scale = Math.min(pw / canvasEl.width, ph / canvasEl.height);
+    canvasEl.style.width = Math.round(canvasEl.width * scale) + 'px';
+    canvasEl.style.height = Math.round(canvasEl.height * scale) + 'px';
+  }
+
+  function showErrorImpl(msg: string, immediate = true): void {
+    if (errorTimer !== null) { clearTimeout(errorTimer); errorTimer = null; }
+    if (immediate) {
+      errorText = msg;
+    } else {
+      errorTimer = window.setTimeout(() => { errorText = msg; errorTimer = null; }, 600);
+    }
+  }
+
+  async function runImageImpl(immediate = false): Promise<void> {
+    if (runTimer !== null) { clearTimeout(runTimer); runTimer = null; }
+    updateUrl();
+    if (!originalBuffer) return;
+    loading = true;
+    try {
+      const seedNum = parseInt(seed, 10) >>> 0;
+      const rand = mulberry32(seedNum);
+      const image = new GlitchBuffer(originalBuffer.slice(), imgWidth, imgHeight, rand);
+      await runGlitchsp(script, image, rand);
+      const rgba = glitchToRgba(image.data, image.width, image.height);
+      canvasEl.width = image.width;
+      canvasEl.height = image.height;
+      ctx.putImageData(new ImageData(rgba, image.width, image.height), 0, 0);
+      hasImage = true;
+      fitCanvas();
+      if (errorTimer !== null) { clearTimeout(errorTimer); errorTimer = null; }
+      errorText = '';
+    } catch (e) {
+      showErrorImpl(String(e), immediate);
+    } finally {
+      loading = false;
+    }
+  }
+
+  async function loadImageFromBlob(blob: Blob): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
+      img.onload = () => {
+        imgWidth = img.naturalWidth;
+        imgHeight = img.naturalHeight;
+        canvasEl.width = imgWidth;
+        canvasEl.height = imgHeight;
+        ctx.drawImage(img, 0, 0);
+        originalBuffer = rgbaToGlitch(ctx.getImageData(0, 0, imgWidth, imgHeight).data, imgWidth, imgHeight);
+        URL.revokeObjectURL(url);
+        resolve();
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('failed to load image')); };
+      img.src = url;
+    });
+  }
+
+  function originalToPngBlob(): Promise<Blob> {
+    const rgba = glitchToRgba(originalBuffer!, imgWidth, imgHeight);
+    const off = new OffscreenCanvas(imgWidth, imgHeight);
+    off.getContext('2d')!.putImageData(new ImageData(rgba, imgWidth, imgHeight), 0, 0);
+    return off.convertToBlob({ type: 'image/png' });
+  }
+
+  // Re-run (debounced) when script changes
+  $effect(() => {
+    const s = script; // track
+    if (!originalBuffer) return;
+    if (runTimer !== null) { clearTimeout(runTimer); runTimer = null; }
+    runTimer = window.setTimeout(() => {
+      runTimer = null;
+      try { parse(s); } catch (e) { showErrorImpl(String(e), false); return; }
+      runImageImpl();
+    }, 300);
+  });
+
+  onMount(() => {
+    ctx = canvasEl.getContext('2d')!;
+    const ro = new ResizeObserver(fitCanvas);
+    ro.observe(paneEl);
+
+    onready?.({
+      loadImage: loadImageFromBlob,
+      runImage: runImageImpl,
+      showError: showErrorImpl,
+      getBlobs: async () => {
+        if (!originalBuffer) return null;
+        const [output, orig] = await Promise.all([
+          new Promise<Blob>(res => canvasEl.toBlob(b => res(b!))),
+          originalToPngBlob(),
+        ]);
+        return { output, orig };
+      },
+    });
+
+    return () => {
+      ro.disconnect();
+      if (runTimer !== null) clearTimeout(runTimer);
+      if (errorTimer !== null) clearTimeout(errorTimer);
+    };
+  });
+</script>
+
+<div id="canvas-pane" class:has-image={hasImage} bind:this={paneEl}>
+  <div id="no-image">no image loaded</div>
+  <div id="loading" class:visible={loading} role="status" aria-live="polite">rendering…</div>
+  <div id="canvas-wrap">
+    <span id="preview-label">preview</span>
+    <canvas id="canvas" bind:this={canvasEl}></canvas>
+  </div>
+</div>
+<pre id="error" role="alert">{errorText}</pre>
+
+<style>
+  #canvas-pane {
+    grid-column: 2;
+    grid-row: 1 / -1;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+    padding: var(--sp);
+    overflow: hidden;
+    min-width: 0;
+  }
+
+  #canvas-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  #preview-label {
+    font-size: var(--label-size);
+    color: var(--fg-dim);
+    display: none;
+  }
+
+  #canvas-pane.has-image #preview-label { display: block; }
+
+  #no-image {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--fg-dim);
+    font-size: var(--label-size);
+    position: absolute;
+    inset: 0;
+  }
+
+  #canvas-pane.has-image #no-image { display: none; }
+
+  #loading {
+    display: none;
+    position: absolute;
+    inset: 0;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.5);
+    color: var(--fg);
+    z-index: 1;
+  }
+
+  #loading.visible { display: flex; }
+
+  #canvas {
+    display: block;
+    image-rendering: pixelated;
+  }
+
+  #error {
+    color: var(--error);
+    margin: 0;
+    white-space: pre-wrap;
+  }
+
+  @media (max-width: 768px) {
+    #canvas-pane {
+      grid-column: 1;
+      grid-row: auto;
+      max-height: 50vh;
+      min-height: 256px;
+      padding-left: 0;
+      padding-right: 0;
+    }
+  }
+</style>

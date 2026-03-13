@@ -152,52 +152,6 @@ dialog::backdrop {
   background: rgba(0, 0, 0, 0.55);
 }
 
-#help-dialog {
-  max-width: min(680px, 90vw);
-  max-height: 80vh;
-  width: 100%;
-  overflow: hidden;
-}
-
-#help-dialog[open] {
-  display: flex;
-  flex-direction: column;
-}
-
-.help-tabs {
-  display: flex;
-  gap: 6px;
-  margin-bottom: var(--sp);
-  flex-shrink: 0;
-}
-
-.help-tab {
-  background: none;
-  border: 1px solid transparent;
-  color: var(--fg-dim);
-  padding: 3px 10px;
-}
-
-.help-tab:hover {
-  color: var(--fg);
-}
-
-.help-tab.active {
-  border-color: var(--border);
-  background: var(--btn-bg);
-  color: var(--fg);
-}
-
-#help-content {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  white-space: pre-wrap;
-  overflow-wrap: break-word;
-  line-height: 1.5;
-  margin-bottom: var(--sp);
-}
-
 .file-seed-row {
   display: flex;
   gap: var(--sp);
@@ -209,24 +163,6 @@ dialog::backdrop {
   min-width: 0;
 }
 
-.seed-row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 3px 6px;
-}
-
-.seed-row label,
-.presets-row label {
-  grid-column: 1 / -1;
-}
-
-.presets-row {
-  display: grid;
-  grid-template-columns: 1fr auto auto;
-  gap: 3px 6px;
-}
-
-.presets-row select,
 #add-effect-select,
 #wrap-select {
   background: var(--bg-input);
@@ -237,111 +173,6 @@ dialog::backdrop {
   padding: 4px 8px;
   line-height: 1.4;
 }
-
-.buttons {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-}
-
-#help-btn {
-  margin-right: auto;
-}
-
-#error {
-  color: var(--error);
-  margin: 0;
-  white-space: pre-wrap;
-}
-
-#canvas-pane {
-  grid-column: 2;
-  grid-row: 1 / -1;
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg);
-  padding: var(--sp);
-  overflow: hidden;
-  min-width: 0;
-}
-
-#canvas-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-#preview-label {
-  font-size: var(--label-size);
-  color: var(--fg-dim);
-  display: none;
-}
-
-#canvas-pane.has-image #preview-label {
-  display: block;
-}
-
-#no-image {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--fg-dim);
-  font-size: var(--label-size);
-  position: absolute;
-  inset: 0;
-}
-
-#canvas-pane.has-image #no-image {
-  display: none;
-}
-
-#loading {
-  display: none;
-  position: absolute;
-  inset: 0;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.5);
-  color: var(--fg);
-  z-index: 1;
-}
-
-#loading.visible {
-  display: flex;
-}
-
-#canvas {
-  display: block;
-  image-rendering: pixelated;
-}
-
-#modal {
-  min-width: 260px;
-}
-
-#modal-msg {
-  margin: 0 0 12px;
-}
-
-#modal-input {
-  width: 100%;
-  margin-bottom: 12px;
-}
-
-#preset-confirm-name {
-  width: 100%;
-}
-
-#preset-confirm-dialog .field {
-  margin-bottom: 12px;
-}
-
-.preset-confirm-buttons .spacer {
-  flex: 1;
-}
-
 
 .modal-buttons {
   display: flex;
@@ -358,15 +189,6 @@ dialog::backdrop {
   #controls {
     grid-template-columns: 1fr;
     overflow-y: visible;
-  }
-
-  #canvas-pane {
-    grid-column: 1;
-    grid-row: auto;
-    max-height: 50vh;
-    min-height: 256px;
-    padding-left: 0;
-    padding-right: 0;
   }
 
 }
@@ -386,3 +208,34 @@ dialog::backdrop {
     animation-duration: 0.01ms !important;
   }
 }
+
+/* ── effect dialog sizing ──────────────────────────────────────────────── */
+
+#effect-dialog { width: 380px; max-width: 90vw; }
+
+/* ── param accordion rows ──────────────────────────────────────────────── */
+
+.param-row { display: flex; flex-direction: column; margin-bottom: 6px; }
+/* grid: fixed chevron | shrink-to-fit label | all remaining space for controls */
+.param-header { display: grid; grid-template-columns: 14px auto 1fr; align-items: center; gap: 8px; }
+.param-chevron { cursor: pointer; color: var(--fg-dim); font-size: 10px; user-select: none; }
+.param-header > label { color: var(--fg-dim); font-size: var(--label-size); cursor: pointer; white-space: nowrap; }
+.param-controls { display: flex; gap: 6px; align-items: center; min-width: 0; }
+.param-controls input[type=range] { flex: 1; min-width: 0; }
+.param-controls input[type=number] { width: 52px; flex-shrink: 0; }
+.param-rand-preview { flex: 1; min-width: 0; font-family: var(--font); font-size: var(--font-size); color: var(--fg-dim); background: var(--bg-input); border: 1px solid var(--border); padding: 2px 4px; }
+
+/* ── expanded panel ────────────────────────────────────────────────────── */
+
+.param-expanded { margin-top: 4px; padding: 6px 8px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 3px; display: flex; flex-direction: column; gap: 6px; }
+.param-expanded[hidden] { display: none; }
+.param-desc { font-size: var(--label-size); color: var(--fg-dim); margin: 0; }
+.param-option { display: flex; align-items: center; gap: 6px; font-size: var(--label-size); color: var(--fg); cursor: pointer; }
+.param-rand-panel { display: flex; flex-direction: column; gap: 6px; padding-top: 4px; }
+.param-rand-panel[hidden] { display: none; }
+.param-rand-type { display: flex; gap: 12px; font-size: var(--label-size); }
+.param-rand-inputs { display: flex; flex-direction: column; gap: 4px; }
+.param-rand-row { display: flex; align-items: center; gap: 6px; font-size: var(--label-size); color: var(--fg-dim); }
+.param-rand-row span { flex-shrink: 0; min-width: 28px; }
+.param-rand-row input[type=range] { flex: 1; min-width: 0; }
+.param-rand-row input[type=number] { width: 52px; flex-shrink: 0; }

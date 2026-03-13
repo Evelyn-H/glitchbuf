@@ -11,6 +11,8 @@ export interface ParamDef {
   type: ParamType;
   min: number; max: number; default: number;
   step?: number; unit?: string;
+  desc: string;
+  optional?: true;
 }
 
 export const enum OpKind { audio = 'audio', byte = 'byte', pixel = 'pixel', image = 'image', wrap = 'wrap' }
@@ -27,13 +29,13 @@ export interface OpDef {
 export const OPS: OpDef[] = [
   {
     name: 'bitcrush', desc: 'reduce bit depth of each byte.', kind: OpKind.byte, params: [
-      { name: 'bits', type: ParamType.int, min: 1, max: 8, default: 4, step: 1 },
+      { name: 'bits', type: ParamType.int, min: 1, max: 8, default: 4, step: 1, desc: 'bit depth (1–8); low values produce harsh banding, higher values are subtler' },
     ], invoke: (buf, bits) => buf.bitcrush(bits)
   },
 
   {
     name: 'noise', desc: 'add random noise (amplitude in dB).', kind: OpKind.byte, params: [
-      { name: 'amount', type: ParamType.float, min: -24, max: 24, default: -12, step: 1, unit: 'dB' },
+      { name: 'amount', type: ParamType.float, min: -24, max: 24, default: -12, step: 1, unit: 'dB', desc: 'amplitude in dB; e.g. -30 = subtle, -6 = heavy' },
     ], invoke: (buf, amt) => buf.noise(amt as Decibels)
   },
 
@@ -44,138 +46,138 @@ export const OPS: OpDef[] = [
 
   {
     name: 'echo', desc: 'delay-and-mix echo effect.', kind: OpKind.audio, params: [
-      { name: 'delay', type: ParamType.float, min: -100, max: 100, default: 20, step: 1, unit: '%' },
-      { name: 'gain', type: ParamType.float, min: -32, max: 0, default: -12, step: 1, unit: 'dB' },
+      { name: 'delay', type: ParamType.float, min: -100, max: 100, default: 20, step: 1, unit: '%', desc: 'delay length as % of buffer length' },
+      { name: 'gain', type: ParamType.float, min: -32, max: 0, default: -12, step: 1, unit: 'dB', desc: 'echo amplitude in dB (negative = quieter)' },
     ], invoke: (buf, t, g) => buf.echo(t as Percentage, g as Decibels)
   },
 
   {
     name: 'reverb', desc: 'Freeverb-style reverb.', kind: OpKind.audio, params: [
-      { name: 'room', type: ParamType.float, min: 0, max: 1, default: 0.7, step: 0.01 },
-      { name: 'damp', type: ParamType.log, min: 1, max: 14000, default: 3000, unit: 'Hz' },
+      { name: 'room', type: ParamType.float, min: 0, max: 1, default: 0.7, step: 0.01, desc: 'room size (0–1); larger values produce more smearing' },
+      { name: 'damp', type: ParamType.log, min: 1, max: 14000, default: 3000, unit: 'Hz', desc: 'high-frequency damping cutoff in Hz' },
     ], invoke: (buf, r, d) => buf.reverb(r, d as Frequency)
   },
 
   {
     name: 'rescale', desc: 'resize the image. omit height to preserve aspect ratio.', kind: OpKind.image, params: [
-      { name: 'width', type: ParamType.int, min: 64, max: 4096, default: 1024, step: 1, unit: 'px' },
-      { name: 'height', type: ParamType.int, min: 64, max: 4096, default: 1024, step: 1, unit: 'px' },
+      { name: 'width', type: ParamType.int, min: 64, max: 4096, default: 1024, step: 1, unit: 'px', desc: 'target width in pixels' },
+      { name: 'height', type: ParamType.int, min: 64, max: 4096, default: 1024, step: 1, unit: 'px', desc: 'target height in pixels (omit to preserve aspect ratio)', optional: true },
     ], invoke: (buf, w, h) => buf.rescale(w, h)
   },
 
   {
     name: 'resize', desc: 'resize the image. omit height to preserve aspect ratio. (alias for rescale)', kind: OpKind.image, params: [
-      { name: 'width', type: ParamType.int, min: 64, max: 4096, default: 1024, step: 1, unit: 'px' },
-      { name: 'height', type: ParamType.int, min: 64, max: 4096, default: 1024, step: 1, unit: 'px' },
+      { name: 'width', type: ParamType.int, min: 64, max: 4096, default: 1024, step: 1, unit: 'px', desc: 'target width in pixels' },
+      { name: 'height', type: ParamType.int, min: 64, max: 4096, default: 1024, step: 1, unit: 'px', desc: 'target height in pixels (omit to preserve aspect ratio)', optional: true },
     ], invoke: (buf, w, h) => buf.rescale(w, h)
   },
 
   {
     name: 'copy', desc: 'copy a region to another position in the buffer.', kind: OpKind.audio, params: [
-      { name: 'src', type: ParamType.float, min: 0, max: 100, default: 0, step: 1, unit: '%' },
-      { name: 'end', type: ParamType.float, min: 0, max: 100, default: 50, step: 1, unit: '%' },
-      { name: 'dst', type: ParamType.float, min: 0, max: 100, default: 50, step: 1, unit: '%' },
+      { name: 'src', type: ParamType.float, min: 0, max: 100, default: 0, step: 1, unit: '%', desc: 'source region start (% of buffer)' },
+      { name: 'end', type: ParamType.float, min: 0, max: 100, default: 50, step: 1, unit: '%', desc: 'source region end (% of buffer)' },
+      { name: 'dst', type: ParamType.float, min: 0, max: 100, default: 50, step: 1, unit: '%', desc: 'destination start (% of buffer)' },
     ], invoke: (buf, s, e, t) => buf.copy(s as Percentage, e as Percentage, t as Percentage)
   },
 
   {
     name: 'tremolo', desc: 'oscillate amplitude over the buffer length.', kind: OpKind.audio, params: [
-      { name: 'rate', type: ParamType.log, min: 1, max: 100000, default: 100 },
-      { name: 'depth', type: ParamType.float, min: 0, max: 1, default: 0.5, step: 0.01 },
+      { name: 'rate', type: ParamType.log, min: 1, max: 100000, default: 100, desc: 'number of LFO oscillations across the buffer' },
+      { name: 'depth', type: ParamType.float, min: 0, max: 1, default: 0.5, step: 0.01, desc: 'modulation depth (0 = no effect, 1 = full amplitude swing)' },
     ], invoke: (buf, r, d) => buf.tremolo(r, d)
   },
 
   {
     name: 'distort', desc: 'tanh waveshaper distortion.', kind: OpKind.byte, params: [
-      { name: 'drive', type: ParamType.float, min: 1, max: 10, default: 2, step: 0.1 },
+      { name: 'drive', type: ParamType.float, min: 1, max: 10, default: 2, step: 0.1, desc: 'saturation amount (~1 = clean, ~10 = heavy crunch)' },
     ], invoke: (buf, d) => buf.distort(d)
   },
 
   {
     name: 'chorus', desc: 'chorus/flanger modulation effect.', kind: OpKind.audio, params: [
-      { name: 'rate', type: ParamType.log, min: 1, max: 2000, default: 200, step: 1, unit: 'Hz' },
-      { name: 'depth', type: ParamType.int, min: 0, max: 72, default: 32, step: 1, unit: 'dB' },
+      { name: 'rate', type: ParamType.log, min: 1, max: 2000, default: 200, step: 1, unit: 'Hz', desc: 'LFO oscillation count' },
+      { name: 'depth', type: ParamType.int, min: 0, max: 72, default: 32, step: 1, unit: 'dB', desc: 'modulation width in dB' },
     ], invoke: (buf, r, d) => buf.chorus(r, d as Decibels)
   },
 
   {
     name: 'pitchshift', desc: 'shift pitch by semitones.', kind: OpKind.audio, params: [
-      { name: 'semitones', type: ParamType.float, min: -24, max: 24, default: 1, step: 0.1 },
+      { name: 'semitones', type: ParamType.float, min: -24, max: 24, default: 1, step: 0.1, desc: 'pitch shift amount in semitones' },
     ], invoke: (buf, s) => buf.pitchShift(s)
   },
 
   {
     name: 'phaser', desc: 'all-pass phaser effect.', kind: OpKind.audio, params: [
-      { name: 'freq', type: ParamType.log, min: 1, max: 2000, default: 10, unit: 'Hz' },
-      { name: 'octaves', type: ParamType.float, min: 1, max: 12, default: 3, step: 1 },
-      { name: 'base', type: ParamType.log, min: 1, max: 10000, default: 200, unit: 'Hz' },
+      { name: 'freq', type: ParamType.log, min: 1, max: 2000, default: 10, unit: 'Hz', desc: 'LFO rate in Hz' },
+      { name: 'octaves', type: ParamType.float, min: 1, max: 12, default: 3, step: 1, desc: 'sweep width in octaves' },
+      { name: 'base', type: ParamType.log, min: 1, max: 10000, default: 200, unit: 'Hz', desc: 'center frequency in Hz' },
     ], invoke: (buf, f, o, b) => buf.phaser(f as Frequency, o, b as Frequency)
   },
 
   {
     name: 'freqshift', desc: 'shift all frequency components by a fixed offset.', kind: OpKind.audio, params: [
-      { name: 'freq', type: ParamType.log, min: -20000, max: 20000, default: 1000, step: 1, unit: 'Hz' },
+      { name: 'freq', type: ParamType.log, min: -20000, max: 20000, default: 1000, step: 1, unit: 'Hz', desc: 'shift amount in Hz (positive = up, negative = down)' },
     ], invoke: (buf, f) => buf.frequencyShift(f as Frequency)
   },
 
   {
     name: 'vibrato', desc: 'frequency modulation vibrato.', kind: OpKind.audio, params: [
-      { name: 'freq', type: ParamType.log, min: 0, max: 1000, default: 5, unit: 'Hz' },
-      { name: 'depth', type: ParamType.float, min: 0, max: 1, default: 0.5, step: 0.01 },
+      { name: 'freq', type: ParamType.log, min: 0, max: 1000, default: 5, unit: 'Hz', desc: 'LFO rate in Hz' },
+      { name: 'depth', type: ParamType.float, min: 0, max: 1, default: 0.5, step: 0.01, desc: 'modulation depth (0–1)' },
     ], invoke: (buf, f, d) => buf.vibrato(f as Frequency, d)
   },
 
   {
     name: 'chebyshev', desc: 'chebyshev waveshaper — adds upper harmonics. positive = odd orders, negative = even orders.', kind: OpKind.audio, params: [
-      { name: 'order', type: ParamType.int, min: -20, max: 20, default: 1, step: 1 },
+      { name: 'order', type: ParamType.int, min: -20, max: 20, default: 1, step: 1, desc: 'positive = odd harmonic orders (0→1, 1→3…), negative = even orders (−1→2, −2→4…)' },
     ], invoke: (buf, o) => buf.chebyshev(o)
   },
 
   {
     name: 'autowah', desc: 'envelope-following auto-wah filter.', kind: OpKind.audio, params: [
-      { name: 'base', type: ParamType.log, min: 1, max: 2000, default: 250, unit: 'Hz' },
-      { name: 'octaves', type: ParamType.float, min: 1, max: 8, default: 6, step: 1 },
-      { name: 'sens', type: ParamType.float, min: -60, max: 0, default: -6, step: 1, unit: 'dB' },
+      { name: 'base', type: ParamType.log, min: 1, max: 2000, default: 250, unit: 'Hz', desc: 'center frequency in Hz' },
+      { name: 'octaves', type: ParamType.float, min: 1, max: 8, default: 6, step: 1, desc: 'sweep range in octaves' },
+      { name: 'sens', type: ParamType.float, min: -60, max: 0, default: -6, step: 1, unit: 'dB', desc: 'envelope follower sensitivity in dB' },
     ], invoke: (buf, f, o, s) => buf.autowah(f as Frequency, o, s as Decibels)
   },
 
   {
     name: 'feedbackdelay', desc: 'feedback delay line.', kind: OpKind.audio, params: [
-      { name: 'delay', type: ParamType.float, min: 0, max: 100, default: 20, step: 1, unit: '%' },
-      { name: 'feedback', type: ParamType.float, min: 0, max: 1, default: 0.5, step: 0.01 },
+      { name: 'delay', type: ParamType.float, min: 0, max: 100, default: 20, step: 1, unit: '%', desc: 'delay time as % of buffer length' },
+      { name: 'feedback', type: ParamType.float, min: 0, max: 1, default: 0.5, step: 0.01, desc: 'feedback amount (0–1); higher values build up more echoes' },
     ], invoke: (buf, dt, fb) => buf.feedbackDelay(dt as Percentage, fb)
   },
 
   {
     name: 'sort', desc: 'pixel-sort horizontally by brightness threshold.', kind: OpKind.pixel, params: [
-      { name: 'threshold', type: ParamType.float, min: 0, max: 100, default: 50, step: 1, unit: '%' },
+      { name: 'threshold', type: ParamType.float, min: 0, max: 100, default: 50, step: 1, unit: '%', desc: 'luma threshold; sorts runs of pixels brighter than threshold%' },
     ], invoke: (buf, t) => buf.sort(t as Percentage)
   },
 
   {
     name: 'sortvertical', desc: 'pixel-sort vertically by brightness threshold.', kind: OpKind.pixel, params: [
-      { name: 'threshold', type: ParamType.float, min: 0, max: 100, default: 50, step: 1, unit: '%' },
+      { name: 'threshold', type: ParamType.float, min: 0, max: 100, default: 50, step: 1, unit: '%', desc: 'luma threshold; sorts columns brighter than threshold%' },
     ], invoke: (buf, t) => buf.sortvertical(t as Percentage)
   },
 
   {
     name: 'smear', desc: 'horizontal pixel smear / motion blur.', kind: OpKind.pixel, params: [
-      { name: 'amount', type: ParamType.log, min: 0, max: 1, default: 0.1, step: 0.01, unit: '%' },
-      { name: 'decay', type: ParamType.log, min: 0, max: 1, default: 0.1, step: 0.01 },
+      { name: 'amount', type: ParamType.log, min: 0, max: 1, default: 0.1, step: 0.01, unit: '%', desc: 'smear length as fraction of pixel count' },
+      { name: 'decay', type: ParamType.log, min: 0, max: 1, default: 0.1, step: 0.01, desc: 'peak value persistence (0 = no smear, 1 = hold forever)' },
     ], invoke: (buf, a, d) => buf.smear(a as Percentage, d)
   },
 
   {
     name: 'xor', desc: 'XOR each byte with a constant value.', kind: OpKind.byte, params: [
-      { name: 'value', type: ParamType.int, min: 0, max: 255, default: 85, step: 1 },
+      { name: 'value', type: ParamType.int, min: 0, max: 255, default: 85, step: 1, desc: 'XOR mask (0–255); 85 and 170 produce structured checkerboard-like bit patterns' },
     ], invoke: (buf, v) => buf.xor(v)
   },
 
   {
     name: 'transpose', desc: 'shift one RGB channel by a pixel offset.', kind: OpKind.image, params: [
-      { name: 'ch', type: ParamType.int, min: 0, max: 2, default: 0, step: 1 },
-      { name: 'dx', type: ParamType.float, min: -100, max: 100, default: 10, step: 0.1, unit: '%' },
-      { name: 'dy', type: ParamType.float, min: -100, max: 100, default: 10, step: 0.1, unit: '%' },
+      { name: 'ch', type: ParamType.int, min: 0, max: 2, default: 0, step: 1, desc: 'channel to shift (0=R, 1=G, 2=B)' },
+      { name: 'dx', type: ParamType.float, min: -100, max: 100, default: 10, step: 0.1, unit: '%', desc: 'horizontal shift as % of image width (negative = left)' },
+      { name: 'dy', type: ParamType.float, min: -100, max: 100, default: 10, step: 0.1, unit: '%', desc: 'vertical shift as % of image height (negative = up)' },
     ], invoke: (buf, ch, dx, dy) => buf.transpose(ch, dx as Percentage, dy as Percentage)
   },
 
@@ -186,25 +188,25 @@ export const OPS: OpDef[] = [
 
   {
     name: 'shuffle', desc: 'randomly swap a fraction of pixels.', kind: OpKind.pixel, params: [
-      { name: 'amount', type: ParamType.float, min: 0, max: 100, default: 50, step: 1, unit: '%' },
+      { name: 'amount', type: ParamType.float, min: 0, max: 100, default: 50, step: 1, unit: '%', desc: 'fraction of pixels to swap; higher values approach full randomisation' },
     ], invoke: (buf, pct) => buf.shuffle(pct as Percentage)
   },
 
   {
     name: 'quantize', desc: 'reduce colour to N evenly-spaced levels per channel.', kind: OpKind.byte, params: [
-      { name: 'levels', type: ParamType.int, min: 2, max: 256, default: 8, step: 1 },
+      { name: 'levels', type: ParamType.int, min: 2, max: 256, default: 8, step: 1, desc: 'number of discrete levels per channel (≥2); lower values produce more pronounced posterisation' },
     ], invoke: (buf, n) => buf.quantize(n)
   },
 
   {
     name: 'fold', desc: 'waveform-folding distortion.', kind: OpKind.byte, params: [
-      { name: 'drive', type: ParamType.float, min: 0.5, max: 5, default: 1.5, step: 0.1 },
+      { name: 'drive', type: ParamType.float, min: 0.5, max: 5, default: 1.5, step: 0.1, desc: 'fold amount (≤0.5 = passthrough, ~1 = one fold, higher = chaotic recursive folding)' },
     ], invoke: (buf, d) => buf.fold(d)
   },
 
   {
     name: 'solarize', desc: 'invert bytes above threshold (solarise effect).', kind: OpKind.byte, params: [
-      { name: 'threshold', type: ParamType.float, min: 0, max: 1, default: 0.5, step: 0.01 },
+      { name: 'threshold', type: ParamType.float, min: 0, max: 1, default: 0.5, step: 0.01, desc: 'inversion threshold (0–1 fraction of 255); bytes above this are inverted' },
     ], invoke: (buf, t) => buf.solarize(t)
   },
 
@@ -213,37 +215,37 @@ export const OPS: OpDef[] = [
     name: 'select', kind: OpKind.wrap,
     desc: 'apply body to a sub-region of the buffer.\nusage: (select start end body)',
     params: [
-      { name: 'start', type: ParamType.float, min: 0, max: 100, default: 0, step: 1, unit: '%' },
-      { name: 'end', type: ParamType.float, min: 0, max: 100, default: 50, step: 1, unit: '%' },
+      { name: 'start', type: ParamType.float, min: 0, max: 100, default: 0, step: 1, unit: '%', desc: 'selection start as % of buffer' },
+      { name: 'end', type: ParamType.float, min: 0, max: 100, default: 50, step: 1, unit: '%', desc: 'selection end as % of buffer' },
     ]
   },
   {
     name: 'repeat', kind: OpKind.wrap,
     desc: 'repeat a body N times.\nusage: (repeat n body)',
     params: [
-      { name: 'n', type: ParamType.int, min: 1, max: 12, default: 2, step: 1 },
+      { name: 'n', type: ParamType.int, min: 1, max: 12, default: 2, step: 1, desc: 'number of times to repeat the body' },
     ]
   },
   {
     name: 'channel', kind: OpKind.wrap,
     desc: 'apply body to a single RGB channel (R=0 G=1 B=2).\nusage: (channel ch body)',
     params: [
-      { name: 'ch', type: ParamType.int, min: 0, max: 2, default: 0, step: 1 },
+      { name: 'ch', type: ParamType.int, min: 0, max: 2, default: 0, step: 1, desc: 'channel index (0=R, 1=G, 2=B)' },
     ]
   },
   {
     name: 'stride', kind: OpKind.wrap,
     desc: 'apply body to evenly-spaced chunks.\nusage: (stride len skip body)',
     params: [
-      { name: 'len', type: ParamType.float, min: 0.1, max: 100, default: 10, step: 0.1, unit: '%' },
-      { name: 'skip', type: ParamType.int, min: 0, max: 16, default: 0, step: 1 },
+      { name: 'len', type: ParamType.float, min: 0.1, max: 100, default: 10, step: 0.1, unit: '%', desc: 'chunk length as % of buffer' },
+      { name: 'skip', type: ParamType.int, min: 0, max: 16, default: 0, step: 1, desc: 'number of chunks to skip between each processed chunk' },
     ]
   },
   {
     name: 'mix', kind: OpKind.wrap,
     desc: 'blend body result with pre-body snapshot at wet ratio.\nusage: (mix wet body)',
     params: [
-      { name: 'wet', type: ParamType.float, min: 0, max: 1, default: 0.5, step: 0.01 },
+      { name: 'wet', type: ParamType.float, min: 0, max: 1, default: 0.5, step: 0.01, desc: 'wet/dry mix ratio (0 = fully dry, 1 = fully wet)' },
     ]
   },
   {
