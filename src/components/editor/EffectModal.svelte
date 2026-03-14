@@ -23,11 +23,10 @@
     OpKind.byte,
     OpKind.pixel,
     OpKind.audio,
+    OpKind.filter,
     OpKind.image,
   ];
-  const addOps = OPS.filter((op) => op.invoke && op.kind !== OpKind.wrap).sort(
-    (a, b) => a.name.localeCompare(b.name),
-  );
+  const addOps = OPS.filter((op) => op.invoke && op.kind !== OpKind.wrap);
   const addOpsByKind = ADD_KIND_ORDER.map((kind) => ({
     kind,
     ops: addOps.filter((op) => op.kind === kind),
@@ -202,7 +201,7 @@
       <p class="effect-desc">{currentMeta.desc}</p>
     {/if}
 
-    {#each currentMeta.params as param, i}
+    {#each currentMeta.params as param, i (currentMeta.name + i)}
       {@const argNode = editParsed?.argNodes[i]}
       {@const startDisabled =
         !!param.optional && !!editParsed && i >= editParsed.argNodes.length}

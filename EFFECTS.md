@@ -12,6 +12,14 @@ these treat pixel bytes as audio samples (mapped to -1..1), apply the effect, th
 
 ---
 
+## filter effects
+
+biquad filters treating the pixel buffer as an audio signal.
+
+`lowpass` `highpass` `bandpass` `lowshelf` `highshelf` `notch`
+
+---
+
 ## byte effects & transforms
 
 operate directly on the raw byte stream.

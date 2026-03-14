@@ -1,4 +1,4 @@
-import { Offline, Player, ToneAudioBuffer, Freeverb, Phaser, FrequencyShifter, Vibrato, Chebyshev, AutoWah, FeedbackDelay, PitchShift } from 'tone';
+import { Offline, Player, ToneAudioBuffer, Freeverb, Phaser, FrequencyShifter, Vibrato, Chebyshev, AutoWah, FeedbackDelay, PitchShift, Filter } from 'tone';
 
 // ── Newtypes for numeric types ────────────────────────────────────────────────────
 
@@ -37,6 +37,12 @@ export interface IGlitchBuffer {
   chebyshev(order: number): Promise<this>;
   autowah(baseFrequency: Frequency, octaves: number, sensitivity: Decibels): Promise<this>;
   feedbackDelay(delayTime: Percentage, feedback: number): Promise<this>;
+  lowpass(frequency: Frequency, Q: number): Promise<this>;
+  highpass(frequency: Frequency, Q: number): Promise<this>;
+  bandpass(frequency: Frequency, Q: number): Promise<this>;
+  notch(frequency: Frequency, Q: number): Promise<this>;
+  lowshelf(frequency: Frequency, gain: Decibels): Promise<this>;
+  highshelf(frequency: Frequency, gain: Decibels): Promise<this>;
   sort(threshold: Percentage): this;
   sortvertical(threshold: Percentage): this;
   smear(amount: Percentage, decay: number): this;
@@ -436,5 +442,31 @@ export class GlitchBuffer implements IGlitchBuffer {
   // Tone.js PitchShift — time-preserving pitch shift. semitones: e.g. -12 to 12.
   async pitchShift(semitones: number): Promise<this> {
     return this.toneProcess(0.5, () => new PitchShift(semitones)); // extra headroom for lookahead
+  }
+
+  // Tone.js Filter — biquad lowpass, highpass, bandpass.
+  // frequency: cutoff/center Hz, Q: resonance (higher = sharper peak).
+  async lowpass(frequency: Frequency, Q: number): Promise<this> {
+    return this.toneProcess(0.1, () => new Filter({ type: 'lowpass', frequency, Q }));
+  }
+
+  async highpass(frequency: Frequency, Q: number): Promise<this> {
+    return this.toneProcess(0.1, () => new Filter({ type: 'highpass', frequency, Q }));
+  }
+
+  async bandpass(frequency: Frequency, Q: number): Promise<this> {
+    return this.toneProcess(0.1, () => new Filter({ type: 'bandpass', frequency, Q }));
+  }
+
+  async notch(frequency: Frequency, Q: number): Promise<this> {
+    return this.toneProcess(0.1, () => new Filter({ type: 'notch', frequency, Q }));
+  }
+
+  async lowshelf(frequency: Frequency, gain: Decibels): Promise<this> {
+    return this.toneProcess(0.1, () => new Filter({ type: 'lowshelf', frequency, gain }));
+  }
+
+  async highshelf(frequency: Frequency, gain: Decibels): Promise<this> {
+    return this.toneProcess(0.1, () => new Filter({ type: 'highshelf', frequency, gain }));
   }
 }

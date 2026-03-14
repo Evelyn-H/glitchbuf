@@ -2,7 +2,6 @@
 
 ## 1d
   - something to get some solid blocks of color? lots of ways to break things now but not a ton to add new color/shapes
-  - lowpass / highpass / bandpass
 
 ## 2d:
   - dithering
@@ -28,9 +27,6 @@
 
 ## todo
   - feedback form (and perhaps donation page? if i wanna be bold)
-  - plus button to add a line with a new effect (prefill defaults and have effect dropdown to avoid typing)
-    - also let this insert a a whole preset perhaps
-  - add support for leaving out a parameter in an effect dialog (e.g. for leaving the second field blank for a `resize` effect)
   - add back button or something to undo/go back in browser histroy
     - currently the fact that browser history saves state before loading a preset is too opaque
     - maybe also push changes on block blur too

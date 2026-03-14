@@ -15,7 +15,7 @@ export interface ParamDef {
   optional?: true;
 }
 
-export const enum OpKind { audio = 'audio', byte = 'byte', pixel = 'pixel', image = 'image', wrap = 'wrap' }
+export const enum OpKind { audio = 'audio', byte = 'byte', pixel = 'pixel', image = 'image', filter = 'filter', wrap = 'wrap' }
 
 export interface OpDef {
   name: string;
@@ -208,6 +208,48 @@ export const OPS: OpDef[] = [
     name: 'solarize', desc: 'invert bytes above threshold (solarise effect).', kind: OpKind.byte, params: [
       { name: 'threshold', type: ParamType.float, min: 0, max: 1, default: 0.5, step: 0.01, desc: 'inversion threshold (0–1 fraction of 255); bytes above this are inverted' },
     ], invoke: (buf, t) => buf.solarize(t)
+  },
+
+  {
+    name: 'lowpass', desc: 'biquad low-pass filter — attenuates high-frequency byte patterns.', kind: OpKind.filter, params: [
+      { name: 'freq', type: ParamType.log, min: 0, max: 20000, default: 1000, unit: 'Hz', desc: 'cutoff frequency in Hz; lower values produce a smoother, blurrier result' },
+      { name: 'Q', type: ParamType.log, min: 0.1, max: 100, default: 1, desc: 'resonance at the cutoff; higher values add a ringing peak' },
+    ], invoke: (buf, f, q) => buf.lowpass(f as Frequency, q)
+  },
+
+  {
+    name: 'highpass', desc: 'biquad high-pass filter — attenuates low-frequency byte patterns.', kind: OpKind.filter, params: [
+      { name: 'freq', type: ParamType.log, min: 0, max: 20000, default: 1000, unit: 'Hz', desc: 'cutoff frequency in Hz; higher values keep only sharp edges/transitions' },
+      { name: 'Q', type: ParamType.log, min: 0.1, max: 100, default: 1, desc: 'resonance at the cutoff; higher values add a ringing peak' },
+    ], invoke: (buf, f, q) => buf.highpass(f as Frequency, q)
+  },
+
+  {
+    name: 'bandpass', desc: 'biquad band-pass filter — isolates a frequency band of byte patterns.', kind: OpKind.filter, params: [
+      { name: 'freq', type: ParamType.log, min: 0, max: 20000, default: 1000, unit: 'Hz', desc: 'center frequency in Hz' },
+      { name: 'Q', type: ParamType.log, min: 0.1, max: 100, default: 1, desc: 'Q factor — higher values narrow the pass band' },
+    ], invoke: (buf, f, q) => buf.bandpass(f as Frequency, q)
+  },
+
+  {
+    name: 'notch', desc: 'notch filter — attenuates a narrow frequency band.', kind: OpKind.filter, params: [
+      { name: 'freq', type: ParamType.log, min: 0, max: 20000, default: 1000, unit: 'Hz', desc: 'center frequency to reject in Hz' },
+      { name: 'Q', type: ParamType.log, min: 0.1, max: 100, default: 1, desc: 'Q factor — higher values narrow the notch' },
+    ], invoke: (buf, f, q) => buf.notch(f as Frequency, q)
+  },
+
+  {
+    name: 'lowshelf', desc: 'low-shelf filter — boost or cut frequencies below the cutoff.', kind: OpKind.filter, params: [
+      { name: 'freq', type: ParamType.log, min: 0, max: 20000, default: 1000, unit: 'Hz', desc: 'shelf frequency in Hz; frequencies below this are affected' },
+      { name: 'gain', type: ParamType.float, min: -24, max: 48, default: 6, step: 1, unit: 'dB', desc: 'boost (positive) or cut (negative) amount in dB' },
+    ], invoke: (buf, f, g) => buf.lowshelf(f as Frequency, g as Decibels)
+  },
+
+  {
+    name: 'highshelf', desc: 'high-shelf filter — boost or cut frequencies above the cutoff.', kind: OpKind.filter, params: [
+      { name: 'freq', type: ParamType.log, min: 0, max: 20000, default: 1000, unit: 'Hz', desc: 'shelf frequency in Hz; frequencies above this are affected' },
+      { name: 'gain', type: ParamType.float, min: -24, max: 48, default: 6, step: 1, unit: 'dB', desc: 'boost (positive) or cut (negative) amount in dB' },
+    ], invoke: (buf, f, g) => buf.highshelf(f as Frequency, g as Decibels)
   },
 
   // Special forms — evaluated lazily in evaluate(); invoke is unused.

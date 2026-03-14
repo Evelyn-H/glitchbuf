@@ -147,10 +147,12 @@
 
 <div id="canvas-pane" class:has-image={hasImage} bind:this={paneEl}>
   <div id="no-image">no image loaded</div>
-  <div id="loading" class:visible={loading} role="status" aria-live="polite">rendering…</div>
   <div id="canvas-wrap">
     <span id="preview-label">preview</span>
-    <canvas id="canvas" bind:this={canvasEl}></canvas>
+    <div id="canvas-frame">
+      <canvas id="canvas" bind:this={canvasEl}></canvas>
+      <div id="loading" class:visible={loading} role="status" aria-live="polite">rendering…</div>
+    </div>
   </div>
 </div>
 <pre id="error" role="alert">{errorText}</pre>
@@ -173,6 +175,10 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
+  }
+
+  #canvas-frame {
+    position: relative;
   }
 
   #preview-label {
