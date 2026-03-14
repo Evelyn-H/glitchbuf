@@ -36,6 +36,8 @@
     - maybe also push changes on block blur too
     - and perhaps add ctrl-z shortcut to editor that uses browser history
   - add more optional params (default to null) for audio effects where appropriate
+  - hover tooltips on params in code editor
+  - tile effects editor at the bottom of editor rather than modal (keep as modal for mobile?)
 
 
 ## ui redesign for mobile (and less confusing desktop)
