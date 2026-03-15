@@ -5,7 +5,7 @@
   import EffectModal from './components/editor/EffectModal.svelte';
   import type { EffectModalApi } from './components/editor/types';
   import { writePngMeta } from './png-meta';
-  import { b64encode, b64decode } from './utils';
+  import { b64encode, b64decode, stateSearch } from './utils';
   import { openHelpDialog } from './components/dialogs';
   import { BUILT_IN_PRESETS } from './presets';
   import type { PreviewApi } from './components/Preview.svelte';
@@ -36,9 +36,14 @@
     setEditorScript(code);
   }
 
+  function pushHistory(): void {
+    history.pushState(null, '', stateSearch(state.seed, state.script));
+  }
+
   const ctx: AppCtx = {
     state,
     setScript,
+    pushHistory,
     loadImage: (blob) => preview?.loadImage(blob) ?? Promise.resolve(),
     runImage: (immediate?) => preview?.runImage(immediate) ?? Promise.resolve(),
     showError: (msg, immediate?) => preview?.showError(msg, immediate),
@@ -63,6 +68,7 @@
     initEditor(
       document.getElementById('editor')!,
       () => { state.script = getEditorScript(); },
+      () => { ctx.pushHistory(); },
       openHelpDialog,
       modalApi ?? undefined,
     );

@@ -129,6 +129,7 @@ let _editorLines: string[] = [''];
 let _editorEl: HTMLElement;
 let _openModal: EffectModalApi | null = null;
 let _onChange: () => void;
+let _onCommit: () => void;
 let _openHelp: ((tab: string) => void) | undefined;
 let _dragIndex: number | null = null;
 let _dropIndex: number | null = null;
@@ -323,6 +324,7 @@ function startScrub(
     } else {
       // Re-render display with updated block text
       renderDisplay(displayEl, _editorLines[lineIndex]);
+      _onCommit();
     }
   }
 
@@ -354,6 +356,7 @@ function openEffectModal(
       }
       renderEditor();
       _onChange();
+      _onCommit();
     },
   });
 }
@@ -365,6 +368,7 @@ function openAddEffectDialog(): void {
       _editorLines.push(block);
       renderEditor();
       _onChange();
+      _onCommit();
     },
   });
 }
@@ -377,6 +381,7 @@ function openWrapDialog(lineIndex: number): void {
       _editorLines[lineIndex] = wrapped;
       renderEditor();
       _onChange();
+      _onCommit();
     },
   });
 }
@@ -395,6 +400,7 @@ function enterRawMode(): void {
   ta.addEventListener('blur', () => {
     setScript(ta.value);
     _onChange();
+    _onCommit();
   }, { once: true });
   ta.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') { e.preventDefault(); ta.blur(); }
@@ -442,6 +448,7 @@ function attachBlockHandlers(
       _editorLines.splice(insertAt, 0, moved);
       renderEditor();
       _onChange();
+      _onCommit();
     }
     lineEl.classList.remove('is-dragging');
     _dropTarget?.classList.remove('drag-over');
@@ -521,6 +528,7 @@ function attachBlockHandlers(
       _editorLines.splice(i, 1);
       renderEditor();
       _onChange();
+      _onCommit();
       return;
     }
     _editorLines[i] = text;
@@ -528,6 +536,7 @@ function attachBlockHandlers(
     displayEl.hidden = false;
     renderDisplay(displayEl, text);
     _onChange();
+    _onCommit();
   });
 
   editEl.addEventListener('input', () => {
@@ -568,6 +577,7 @@ function attachBlockHandlers(
       _suppressBlur = false;
       focusLine(Math.max(0, i - 1));
       _onChange();
+      _onCommit();
       return;
     }
 
@@ -709,6 +719,7 @@ function renderEditor(): void {
       if (_editorLines.length === 0) _editorLines = [''];
       renderEditor();
       _onChange();
+      _onCommit();
     });
 
     lineWrap.append(displayEl, editEl);
@@ -737,11 +748,13 @@ function renderEditor(): void {
 export function initEditor(
   el: HTMLElement,
   onChange: () => void,
+  onCommit: () => void,
   openHelp?: (tab: string) => void,
   modalApi?: EffectModalApi,
 ): void {
   _editorEl = el;
   _onChange = onChange;
+  _onCommit = onCommit;
   _openHelp = openHelp;
   _openModal = modalApi ?? null;
   renderEditor();

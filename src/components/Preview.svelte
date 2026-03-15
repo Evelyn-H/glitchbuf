@@ -2,7 +2,7 @@
   import { onMount, tick } from 'svelte';
   import { mulberry32, parse, runGlitchsp } from '../glitchsp';
   import { GlitchBuffer, rgbaToGlitch, glitchToRgba } from '../effects';
-  import { b64encode } from '../utils';
+  import { stateSearch } from '../utils';
 
   export interface PreviewApi {
     loadImage(blob: Blob): Promise<void>;
@@ -22,6 +22,7 @@
   let imgHeight = 0;
   let runTimer: number | null = null;
   let errorTimer: number | null = null;
+  let renderGen = 0;
 
   let hasImage = $state(false);
   let loading = $state(false);
@@ -30,11 +31,6 @@
   let paneEl: HTMLDivElement;
   let canvasEl: HTMLCanvasElement;
   let ctx: CanvasRenderingContext2D;
-
-  function updateUrl(): void {
-    const params = new URLSearchParams({ seed, script: b64encode(script) });
-    history.replaceState(null, '', '?' + params.toString());
-  }
 
   function fitCanvas(): void {
     if (!canvasEl.width || !canvasEl.height) return;
@@ -57,7 +53,7 @@
 
   async function runImageImpl(immediate = false): Promise<void> {
     if (runTimer !== null) { clearTimeout(runTimer); runTimer = null; }
-    updateUrl();
+    const gen = ++renderGen;
     if (!originalBuffer) return;
     loading = true;
     // tick() flushes svelte's pending DOM writes so the loading overlay is actually in the DOM.
@@ -67,11 +63,17 @@
     // without this, the main thread gets locked by the render work before the overlay ever shows.
     await tick();
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    // Capture prop values after flush so we render a consistent snapshot.
+    // Also bail if a newer render has already started.
+    if (gen !== renderGen) { loading = false; return; }
+    const renderSeed = seed;
+    const renderScript = script;
     try {
-      const seedNum = parseInt(seed, 10) >>> 0;
+      const seedNum = parseInt(renderSeed, 10) >>> 0;
       const rand = mulberry32(seedNum);
       const image = new GlitchBuffer(originalBuffer.slice(), imgWidth, imgHeight, rand);
-      await runGlitchsp(script, image, rand);
+      await runGlitchsp(renderScript, image, rand);
+      if (gen !== renderGen) return;
       const rgba = glitchToRgba(image.data, image.width, image.height);
       canvasEl.width = image.width;
       canvasEl.height = image.height;
@@ -80,10 +82,12 @@
       fitCanvas();
       if (errorTimer !== null) { clearTimeout(errorTimer); errorTimer = null; }
       errorText = '';
+      history.replaceState(null, '', stateSearch(renderSeed, renderScript));
     } catch (e) {
+      if (gen !== renderGen) return;
       showErrorImpl(String(e), immediate);
     } finally {
-      loading = false;
+      if (gen === renderGen) loading = false;
     }
   }
 
@@ -99,6 +103,7 @@
         ctx.drawImage(img, 0, 0);
         originalBuffer = rgbaToGlitch(ctx.getImageData(0, 0, imgWidth, imgHeight).data, imgWidth, imgHeight);
         URL.revokeObjectURL(url);
+        fitCanvas();
         resolve();
       };
       img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('failed to load image')); };

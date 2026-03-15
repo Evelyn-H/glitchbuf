@@ -70,7 +70,7 @@
       code = userPresets.find((p) => "user:" + p.name === val)?.code;
     }
     if (code !== undefined) {
-      history.pushState(null, "", location.href);
+      ctx.pushHistory();
       ctx.setScript(code);
       lastLoadedCode = ctx.state.script;
       currentSelectValue = val;

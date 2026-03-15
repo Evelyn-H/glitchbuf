@@ -8,6 +8,7 @@ export interface AppState {
 export interface AppCtx {
   state: AppState;
   setScript(code: string): void;
+  pushHistory(): void;
   loadImage(blob: Blob): Promise<void>;
   runImage(immediate?: boolean): Promise<void>;
   showError(msg: string, immediate?: boolean): void;
