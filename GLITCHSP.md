@@ -108,6 +108,19 @@ select 0 50 (crunch)
 select 60 90 (crunch)
 ```
 
+### `letfn name [params] body scope?`
+
+shorthand for `let [name (fn [params] body)] scope?`. with a scope, the binding is local to it; without, it's available to all subsequent forms.
+
+```
+letfn crunch [] (do (bitcrush 4) (noise -30))
+select 0 50 (crunch)
+select 60 90 (crunch)
+
+# scoped — double only visible inside the select
+letfn double [x] (* x 2) (echo (double 5) -6)
+```
+
 ### `if cond then else?`
 
 conditional. `else` branch is optional (returns null if omitted and condition is false).
@@ -209,7 +222,7 @@ if (> (rand) 0.5)
   (shuffle 30)
 
 # reusable function applied to two regions
-let [crunch (fn [] (do (bitcrush 4) (noise -30)))]
+letfn crunch [] (do (bitcrush 4) (noise -30))
 select 0 50 (crunch)
 select 60 90 (crunch)
 ```

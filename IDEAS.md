@@ -31,21 +31,18 @@ totally out there
   - auto warning/help when rendering is slow that lets the user easily insert a rescale to make the image smaller
 
 ## todo
-  - lut optimization: byte effects with a fixed param (bitcrush, saturate, overdrive, fold, solarize, quantize, invert) should precompute a 256-entry lookup table instead of calling the transform per-byte — same fix already applied to gamma
   - feedback form (and perhaps donation page? if i wanna be bold)
   - add back button or something to undo/go back in browser histroy
     - currently the fact that browser history saves state before loading a preset is too opaque
     - maybe also push changes on block blur too
     - and perhaps add ctrl-z shortcut to editor that uses browser history
-  - add more optional params (default to null) for audio effects where appropriate
   - hover tooltips on params in code editor
   - tile effects editor at the bottom of editor rather than modal (keep as modal for mobile?)
   - split copy pasted code into blocks if needed
   - color param type with radio buttons
+  - line eye
 
 ## bugs
-  - deleting lines with the button doesn't clear the preset selection
-  - can't drag a line below the last line
 
 ## ui redesign for mobile (and less confusing desktop)
  - image loading / downloading

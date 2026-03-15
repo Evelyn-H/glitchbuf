@@ -178,6 +178,23 @@ export async function evaluate(expr: GlitchVal, env: GlitchEnv, buf: BufCell): P
     };
   }
 
+  if (head === 'letfn') {
+    // (letfn name [params] body scope?) — shorthand for (let [name (fn [params] body)] scope?)
+    const name = rest[0] as string;
+    const params = rest[1] as string[];
+    const body = rest[2];
+    const closure = env;
+    const fn = (...args: GlitchVal[]): Promise<GlitchVal> => {
+      const inner = new GlitchEnv(closure);
+      params.forEach((p, i) => inner.set(p, args[i]));
+      return evaluate(body, inner, buf);
+    };
+    const hasScope = rest[3] !== undefined;
+    const target = hasScope ? new GlitchEnv(env) : env;
+    target.set(name, fn);
+    return hasScope ? evaluate(rest[3], target, buf) : null;
+  }
+
   if (head === 'select') {
     // (select startPct endPct body) — body evaluated lazily with buf.val = sub
     const start = await evaluate(rest[0], env, buf) as Percentage;

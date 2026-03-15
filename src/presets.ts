@@ -83,7 +83,7 @@ sort (rand 0 100)
 ` },
   {
     name: 'bitcrush', code: `\
-bitrot 0.01
+bitrot 0.05
 bitcrush 3
 pixelate 8
 ` },
@@ -92,11 +92,10 @@ pixelate 8
     // independently means each channel gets different random params — channels drift
     // apart structurally, blur stitches them back into a coherent image
     name: 'channel drift', code: `\
-let [treat (fn []
-(do
+letfn treat [] (do
   (echo (rand 5 35) (randn -12 4))
   (sort (rand 20 80))
-  (noise -28)))]
+  (noise -28))
 channel R (treat)
 channel G (treat)
 channel B (treat)

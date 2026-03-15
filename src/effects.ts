@@ -83,21 +83,19 @@ export interface IGlitchBuffer {
 
 export function rgbaToGlitch(data: Uint8ClampedArray, width: number, height: number): Uint8Array {
   const buf = new Uint8Array(width * height * 3);
-  for (let i = 0; i < width * height; i++) {
-    buf[i * 3] = data[i * 4];     // R
-    buf[i * 3 + 1] = data[i * 4 + 1]; // G
-    buf[i * 3 + 2] = data[i * 4 + 2]; // B
+  let si = 0, di = 0;
+  while (di < buf.length) {
+    buf[di++] = data[si]; buf[di++] = data[si + 1]; buf[di++] = data[si + 2];
+    si += 4;
   }
   return buf;
 }
 
 export function glitchToRgba(buf: Uint8Array, width: number, height: number): Uint8ClampedArray<ArrayBuffer> {
   const out = new Uint8ClampedArray(new ArrayBuffer(width * height * 4));
-  for (let i = 0; i < width * height; i++) {
-    out[i * 4] = buf[i * 3];     // R
-    out[i * 4 + 1] = buf[i * 3 + 1]; // G
-    out[i * 4 + 2] = buf[i * 3 + 2]; // B
-    out[i * 4 + 3] = 255;
+  let si = 0, di = 0;
+  while (si < buf.length) {
+    out[di++] = buf[si++]; out[di++] = buf[si++]; out[di++] = buf[si++]; out[di++] = 255;
   }
   return out;
 }
@@ -172,6 +170,7 @@ export class GlitchBuffer implements IGlitchBuffer {
   private async toneProcess(extraDuration: number, buildFx: () => any): Promise<this> {
     const sampleRate = 44100;
     const len = this.data.length;
+    if (len === 0) return this;
     const duration = len / sampleRate;
 
     const samples = new Float32Array(len);
@@ -255,17 +254,17 @@ export class GlitchBuffer implements IGlitchBuffer {
 
   // Hard clip: amplify then clamp. drive > 1 flattens peaks against the byte ceiling/floor.
   overdrive(drive: number): this {
-    for (let i = 0; i < this.data.length; i++)
-      this.data[i] = clamp8((this.data[i] - 127.5) * drive + 127.5);
+    const lut = new Uint8Array(256);
+    for (let v = 0; v < 256; v++) lut[v] = clamp8((v - 127.5) * drive + 127.5);
+    for (let i = 0; i < this.data.length; i++) this.data[i] = lut[this.data[i]];
     return this;
   }
 
   // Soft-clip via tanh. drive > 1 saturates; ~1 = clean, ~10 = heavy crunch.
   saturate(drive: number): this {
-    for (let i = 0; i < this.data.length; i++) {
-      const x = this.data[i] / 127.5 - 1;
-      this.data[i] = ((Math.tanh(x * drive) + 1) * 127.5 + 0.5) | 0;
-    }
+    const lut = new Uint8Array(256);
+    for (let v = 0; v < 256; v++) lut[v] = ((Math.tanh((v / 127.5 - 1) * drive) + 1) * 127.5 + 0.5) | 0;
+    for (let i = 0; i < this.data.length; i++) this.data[i] = lut[this.data[i]];
     return this;
   }
 
@@ -297,12 +296,13 @@ export class GlitchBuffer implements IGlitchBuffer {
     const offX = Math.round(dx / 100 * width);
     const offY = Math.round(dy / 100 * height);
     const orig = this.data.slice();
+    const xMap = new Int32Array(width), yMap = new Int32Array(height);
+    for (let x = 0; x < width; x++)  xMap[x] = ((x + offX) % width  + width)  % width;
+    for (let y = 0; y < height; y++) yMap[y] = ((y + offY) % height + height) % height;
     for (let srcY = 0; srcY < height; srcY++) {
-      const py = ((srcY + offY) % height + height) % height;
-      for (let srcX = 0; srcX < width; srcX++) {
-        const px = ((srcX + offX) % width + width) % width;
-        this.data[(py * width + px) * 3 + ch] = orig[(srcY * width + srcX) * 3 + ch];
-      }
+      const py = yMap[srcY];
+      for (let srcX = 0; srcX < width; srcX++)
+        this.data[(py * width + xMap[srcX]) * 3 + ch] = orig[(srcY * width + srcX) * 3 + ch];
     }
     return this;
   }
@@ -336,50 +336,50 @@ export class GlitchBuffer implements IGlitchBuffer {
   }
 
   // Gaussian blur approximated by 3 passes of sliding-window box blur.
-  // O(w×h) per pass regardless of radius. Stride is derived from data length so
-  // it works correctly inside luma (1 channel) and normal RGB buffers (3 channels).
+  // O(w×h) per pass regardless of radius.
   blur(radius: number): this {
     const { width, height } = this;
     if (!width || !height) return this;
     const r = Math.max(1, Math.round(radius));
-    const ch = 3;
     const tmp  = new Float32Array(this.data.length);
     const tmp2 = new Float32Array(this.data.length);
 
     const boxH = (src: Float32Array | Uint8Array, dst: Float32Array) => {
-      const sums = new Float64Array(ch);
       const n = 2 * r + 1;
       for (let y = 0; y < height; y++) {
-        sums.fill(0);
+        let s0 = 0, s1 = 0, s2 = 0;
         for (let k = -r; k <= r; k++) {
-          const si = (y * width + Math.max(0, Math.min(width - 1, k))) * ch;
-          for (let c = 0; c < ch; c++) sums[c] += src[si + c];
+          const si = (y * width + Math.max(0, Math.min(width - 1, k))) * 3;
+          s0 += src[si]; s1 += src[si + 1]; s2 += src[si + 2];
         }
         for (let x = 0; x < width; x++) {
-          const di = (y * width + x) * ch;
-          for (let c = 0; c < ch; c++) dst[di + c] = sums[c] / n;
-          const leave = (y * width + Math.max(0, x - r))          * ch;
-          const enter = (y * width + Math.min(width - 1, x + r + 1)) * ch;
-          for (let c = 0; c < ch; c++) sums[c] += src[enter + c] - src[leave + c];
+          const di = (y * width + x) * 3;
+          dst[di] = s0 / n; dst[di + 1] = s1 / n; dst[di + 2] = s2 / n;
+          const leave = (y * width + Math.max(0, x - r))             * 3;
+          const enter = (y * width + Math.min(width - 1, x + r + 1)) * 3;
+          s0 += src[enter] - src[leave];
+          s1 += src[enter + 1] - src[leave + 1];
+          s2 += src[enter + 2] - src[leave + 2];
         }
       }
     };
 
     const boxV = (src: Float32Array, dst: Float32Array) => {
-      const sums = new Float64Array(ch);
       const n = 2 * r + 1;
       for (let x = 0; x < width; x++) {
-        sums.fill(0);
+        let s0 = 0, s1 = 0, s2 = 0;
         for (let k = -r; k <= r; k++) {
-          const si = (Math.max(0, Math.min(height - 1, k)) * width + x) * ch;
-          for (let c = 0; c < ch; c++) sums[c] += src[si + c];
+          const si = (Math.max(0, Math.min(height - 1, k)) * width + x) * 3;
+          s0 += src[si]; s1 += src[si + 1]; s2 += src[si + 2];
         }
         for (let y = 0; y < height; y++) {
-          const di = (y * width + x) * ch;
-          for (let c = 0; c < ch; c++) dst[di + c] = sums[c] / n;
-          const leave = (Math.max(0, y - r)               * width + x) * ch;
-          const enter = (Math.min(height - 1, y + r + 1)  * width + x) * ch;
-          for (let c = 0; c < ch; c++) sums[c] += src[enter + c] - src[leave + c];
+          const di = (y * width + x) * 3;
+          dst[di] = s0 / n; dst[di + 1] = s1 / n; dst[di + 2] = s2 / n;
+          const leave = (Math.max(0, y - r)              * width + x) * 3;
+          const enter = (Math.min(height - 1, y + r + 1) * width + x) * 3;
+          s0 += src[enter] - src[leave];
+          s1 += src[enter + 1] - src[leave + 1];
+          s2 += src[enter + 2] - src[leave + 2];
         }
       }
     };
@@ -527,12 +527,18 @@ export class GlitchBuffer implements IGlitchBuffer {
     if (!width || !height) return this;
     const src = new Uint8Array(this.data);
     const cx = width / 2, cy = height / 2;
+    // theta only depends on x — precompute cos/sin to avoid O(w×h) trig calls.
+    const cosT = new Float32Array(width), sinT = new Float32Array(width);
+    for (let x = 0; x < width; x++) {
+      const theta = (x / width) * 2 * Math.PI;
+      cosT[x] = Math.cos(theta); sinT[x] = Math.sin(theta);
+    }
     for (let y = 0; y < height; y++) {
+      const r = y / height;
+      const rCx = r * cx, rCy = r * cy;
       for (let x = 0; x < width; x++) {
-        const theta = (x / width) * 2 * Math.PI;
-        const r = y / height;
-        const sx = Math.round(cx + r * cx * Math.cos(theta));
-        const sy = Math.round(cy + r * cy * Math.sin(theta));
+        const sx = Math.round(cx + rCx * cosT[x]);
+        const sy = Math.round(cy + rCy * sinT[x]);
         const di = (y * width + x) * 3;
         if (sx >= 0 && sx < width && sy >= 0 && sy < height) {
           const si = (sy * width + sx) * 3;
@@ -610,10 +616,14 @@ export class GlitchBuffer implements IGlitchBuffer {
     const outer = size * Math.sqrt(2);
     const inner = outer * (1 - softness);
     const scale = outer - inner || 0.0001;
+    // Precompute squared normalised distances per column and row.
+    const dx2 = new Float32Array(width), dy2 = new Float32Array(height);
+    for (let x = 0; x < width; x++)  { const d = (x - cx) / cx; dx2[x] = d * d; }
+    for (let y = 0; y < height; y++) { const d = (y - cy) / cy; dy2[y] = d * d; }
     for (let y = 0; y < height; y++) {
+      const d2y = dy2[y];
       for (let x = 0; x < width; x++) {
-        const dx = (x - cx) / cx, dy = (y - cy) / cy;
-        const r = Math.sqrt(dx * dx + dy * dy);
+        const r = Math.sqrt(dx2[x] + d2y);
         const t = Math.min(1, Math.max(0, (r - inner) / scale));
         const smooth = t * t * (3 - 2 * t);
         const factor = Math.max(0, 1 - strength * smooth);
@@ -644,21 +654,23 @@ export class GlitchBuffer implements IGlitchBuffer {
   quantize(levels: number): this {
     const n = Math.max(2, Math.floor(levels));
     const step = 255 / (n - 1);
-    for (let i = 0; i < this.data.length; i++) {
-      this.data[i] = Math.round(Math.round(this.data[i] / step) * step);
-    }
+    const lut = new Uint8Array(256);
+    for (let v = 0; v < 256; v++) lut[v] = Math.round(Math.round(v / step) * step);
+    for (let i = 0; i < this.data.length; i++) this.data[i] = lut[this.data[i]];
     return this;
   }
 
   // Wavefolder: reflects values at 0 and 255 boundaries.
   // drive ≤ 0.5 = passthrough, ~1 = one full fold, higher = multiple folds.
   fold(drive: number): this {
-    for (let i = 0; i < this.data.length; i++) {
-      let v = (this.data[i] / 255) * drive;
-      v = v - Math.floor(v); // fractional part → triangle wave fold
-      if (v > 0.5) v = 1 - v;
-      this.data[i] = Math.round(v * 2 * 255);
+    const lut = new Uint8Array(256);
+    for (let v = 0; v < 256; v++) {
+      let x = (v / 255) * drive;
+      x = x - Math.floor(x);
+      if (x > 0.5) x = 1 - x;
+      lut[v] = Math.round(x * 2 * 255);
     }
+    for (let i = 0; i < this.data.length; i++) this.data[i] = lut[this.data[i]];
     return this;
   }
 
@@ -683,17 +695,17 @@ export class GlitchBuffer implements IGlitchBuffer {
     return this;
   }
 
-  // 8×8 Bayer threshold matrix, values 0–63.
-  private static readonly BAYER8 = [
-    [0, 32, 8, 40, 2, 34, 10, 42],
-    [48, 16, 56, 24, 50, 18, 58, 26],
-    [12, 44, 4, 36, 14, 46, 6, 38],
-    [60, 28, 52, 20, 62, 30, 54, 22],
-    [3, 35, 11, 43, 1, 33, 9, 41],
-    [51, 19, 59, 27, 49, 17, 57, 25],
-    [15, 47, 7, 39, 13, 45, 5, 37],
-    [63, 31, 55, 23, 61, 29, 53, 21],
-  ];
+  // 8×8 Bayer threshold matrix, values 0–63. Flat Uint8Array for cache locality.
+  private static readonly BAYER8 = new Uint8Array([
+     0, 32,  8, 40,  2, 34, 10, 42,
+    48, 16, 56, 24, 50, 18, 58, 26,
+    12, 44,  4, 36, 14, 46,  6, 38,
+    60, 28, 52, 20, 62, 30, 54, 22,
+     3, 35, 11, 43,  1, 33,  9, 41,
+    51, 19, 59, 27, 49, 17, 57, 25,
+    15, 47,  7, 39, 13, 45,  5, 37,
+    63, 31, 55, 23, 61, 29, 53, 21,
+  ]);
 
   // Ordered dithering using the 8×8 Bayer matrix. Adds a spatially-varying threshold
   // before quantizing, producing a crosshatch pattern instead of flat posterisation.
@@ -704,7 +716,7 @@ export class GlitchBuffer implements IGlitchBuffer {
     const step = 255 / (n - 1);
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
-        const t = (GlitchBuffer.BAYER8[y & 7][x & 7] / 64 - 0.5) * step;
+        const t = (GlitchBuffer.BAYER8[((y & 7) << 3) | (x & 7)] / 64 - 0.5) * step;
         const base = (y * width + x) * 3;
         for (let c = 0; c < 3; c++)
           this.data[base + c] = clamp8(Math.round((this.data[base + c] + t) / step) * step);
@@ -747,13 +759,21 @@ export class GlitchBuffer implements IGlitchBuffer {
   }
 
   private sortRun(run: number[]): void {
-    if (run.length < 2) return;
-    const px = run.map(i => ({ r: this.data[i * 3], g: this.data[i * 3 + 1], b: this.data[i * 3 + 2], l: this.lumaAt(i) }));
-    px.sort((a, b) => a.l - b.l);
-    for (let k = 0; k < run.length; k++) {
-      this.data[run[k] * 3] = px[k].r;
-      this.data[run[k] * 3 + 1] = px[k].g;
-      this.data[run[k] * 3 + 2] = px[k].b;
+    const n = run.length;
+    if (n < 2) return;
+    // Copy pixels into a flat buffer and sort an index array by luma — avoids per-pixel objects.
+    const tmp = new Uint8Array(n * 3);
+    for (let k = 0; k < n; k++) {
+      const i = run[k] * 3;
+      tmp[k * 3] = this.data[i]; tmp[k * 3 + 1] = this.data[i + 1]; tmp[k * 3 + 2] = this.data[i + 2];
+    }
+    const order = Array.from({ length: n }, (_, k) => k);
+    order.sort((a, b) =>
+      (tmp[a * 3] * 77 + tmp[a * 3 + 1] * 150 + tmp[a * 3 + 2] * 29) -
+      (tmp[b * 3] * 77 + tmp[b * 3 + 1] * 150 + tmp[b * 3 + 2] * 29));
+    for (let k = 0; k < n; k++) {
+      const di = run[k] * 3, si = order[k] * 3;
+      this.data[di] = tmp[si]; this.data[di + 1] = tmp[si + 1]; this.data[di + 2] = tmp[si + 2];
     }
   }
 
@@ -806,8 +826,9 @@ export class GlitchBuffer implements IGlitchBuffer {
 
   levels(black: number, white: number): this {
     const range = white - black || 1;
-    for (let i = 0; i < this.data.length; i++)
-      this.data[i] = Math.max(0, Math.min(255, (this.data[i] - black) / range * 255));
+    const lut = new Uint8Array(256);
+    for (let v = 0; v < 256; v++) lut[v] = Math.max(0, Math.min(255, (v - black) / range * 255));
+    for (let i = 0; i < this.data.length; i++) this.data[i] = lut[this.data[i]];
     return this;
   }
 
@@ -815,6 +836,7 @@ export class GlitchBuffer implements IGlitchBuffer {
   // Uses geometric skip: samples distance to next flip, so rand() is called once per flip
   // rather than once per bit — ~1/prob times fewer calls for sparse probabilities.
   bitrot(prob: number): this {
+    if (prob <= 0) return this;
     const logQ = Math.log(1 - prob);
     let bit = Math.floor(Math.log(this.rand()) / logQ);
     while (bit < this.data.length * 8) {
