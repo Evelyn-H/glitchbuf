@@ -24,6 +24,14 @@
   // If the user edits the script since then, we prompt before loading another.
   let lastLoadedCode = ctx.state.script;
 
+  // Deselect preset whenever the script diverges from what was loaded.
+  $effect(() => {
+    if (ctx.state.script !== lastLoadedCode) {
+      selectedValue = "";
+      currentSelectValue = "";
+    }
+  });
+
   function saveCurrentAsPreset(name: string, selectAfter?: string): void {
     const idx = userPresets.findIndex((p) => p.name === name);
     const updated: Preset = { name, code: ctx.state.script };

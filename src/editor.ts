@@ -424,7 +424,7 @@ function attachBlockHandlers(
   handle.addEventListener('pointermove', (e) => {
     if (_dragIndex === null) return;
     const target = (document.elementFromPoint(e.clientX, e.clientY) as Element | null)
-      ?.closest('.editor-line') as HTMLElement | null;
+      ?.closest('.editor-line, .drop-sentinel') as HTMLElement | null;
     const newDrop = target ? parseInt(target.dataset.index!) : _dropIndex;
     if (newDrop !== _dropIndex) {
       // Update drag-over only on the changed element rather than querying all lines.
@@ -717,6 +717,11 @@ function renderEditor(): void {
 
     attachBlockHandlers(lineEl, displayEl, editEl, i);
   });
+
+  const sentinel = document.createElement('div');
+  sentinel.className = 'drop-sentinel';
+  sentinel.dataset.index = String(_editorLines.length);
+  _editorEl.appendChild(sentinel);
 
   const addBtn = document.createElement('button');
   addBtn.type = 'button';

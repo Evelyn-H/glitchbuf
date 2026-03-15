@@ -86,6 +86,15 @@
   border-top: 2px solid var(--fg);
 }
 
+.drop-sentinel {
+  height: 4px;
+  flex-shrink: 0;
+}
+
+.drop-sentinel.drag-over {
+  border-top: 2px solid var(--fg);
+}
+
 /* Raw edit mode — replaces block list with a single textarea */
 .raw-edit {
   flex: 1;
