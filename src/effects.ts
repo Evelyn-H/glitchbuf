@@ -13,6 +13,8 @@ import {
   Filter,
 } from 'tone';
 
+const SAMPLE_RATE = 44100;
+
 // ── Newtypes for numeric types ────────────────────────────────────────────────────
 
 declare const _pct: unique symbol;
@@ -224,7 +226,7 @@ export class GlitchBuffer implements IGlitchBuffer {
   // buildFx is called inside the Offline context and must return an unconnected Tone node.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async toneProcess(extraDuration: number, buildFx: () => any): Promise<this> {
-    const sampleRate = 44100;
+    const sampleRate = SAMPLE_RATE;
     const len = this.data.length;
     if (len === 0) return this;
     const duration = len / sampleRate;
@@ -236,13 +238,18 @@ export class GlitchBuffer implements IGlitchBuffer {
     srcBuffer.copyToChannel(samples, 0);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const rendered = await Offline(({ transport }: any) => {
-      const fx = buildFx().toDestination();
-      const player = new Player(new ToneAudioBuffer(srcBuffer));
-      player.connect(fx);
-      player.start(0);
-      transport.start(0);
-    }, duration + extraDuration);
+    const rendered = await Offline(
+      ({ transport }: any) => {
+        const fx = buildFx().toDestination();
+        const player = new Player(new ToneAudioBuffer(srcBuffer));
+        player.connect(fx);
+        player.start(0);
+        transport.start(0);
+      },
+      duration + extraDuration,
+      1,
+      sampleRate
+    );
 
     const out = rendered.getChannelData(0);
     for (let i = 0; i < len; i++) this.data[i] = clamp8(((out[i] ?? 0) + 1) * 127.5);
@@ -1144,7 +1151,7 @@ export class GlitchBuffer implements IGlitchBuffer {
   // Tone.js FeedbackDelay — delay with a recirculating feedback loop.
   // delayTime: 0–100% of buffer length converted to seconds, feedback: 0–1.
   async feedbackDelay(delayTime: Percentage, feedback: number): Promise<this> {
-    const delaySeconds = pct(delayTime, this.data.length) / 44100;
+    const delaySeconds = pct(delayTime, this.data.length) / SAMPLE_RATE;
     return this.toneProcess(2.0, () => new FeedbackDelay({ delayTime: delaySeconds, feedback }));
   }
 
