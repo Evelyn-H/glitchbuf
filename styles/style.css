@@ -9,7 +9,7 @@
   --btn-bg: #2a2a2a;
   --btn-hover: #333;
   --error: #ff7070;
-  --font: ui-monospace, monospace;
+  --font: 'Fira Mono', ui-monospace, monospace;
   --font-size: 13px;
   --label-size: 11px;
 }
