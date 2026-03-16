@@ -17,5 +17,9 @@ export interface AppCtx {
 
 const KEY = Symbol('app');
 
-export function setAppContext(ctx: AppCtx): void { setContext(KEY, ctx); }
-export function getAppContext(): AppCtx { return getContext(KEY); }
+export function setAppContext(ctx: AppCtx): void {
+  setContext(KEY, ctx);
+}
+export function getAppContext(): AppCtx {
+  return getContext(KEY);
+}

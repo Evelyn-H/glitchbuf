@@ -16,7 +16,12 @@
         type="text"
         spellcheck="false"
         bind:value={name}
-        onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); done(name.trim() || null); } }}
+        onkeydown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            done(name.trim() || null);
+          }
+        }}
       />
     </Field>
   {/snippet}

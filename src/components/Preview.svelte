@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { onMount, tick } from "svelte";
-  import { mulberry32, parse, runGlitchsp } from "../glitchsp";
-  import { GlitchBuffer, rgbaToGlitch, glitchToRgba } from "../effects";
-  import { stateSearch } from "../utils";
+  import { onMount, tick } from 'svelte';
+  import { mulberry32, parse, runGlitchsp } from '../glitchsp';
+  import { GlitchBuffer, rgbaToGlitch, glitchToRgba } from '../effects';
+  import { stateSearch } from '../utils';
 
   export interface PreviewApi {
     loadImage(blob: Blob): Promise<void>;
@@ -30,7 +30,7 @@
 
   let hasImage = $state(false);
   let loading = $state(false);
-  let errorText = $state("");
+  let errorText = $state('');
 
   let paneEl: HTMLDivElement;
   let canvasEl: HTMLCanvasElement;
@@ -39,17 +39,11 @@
   function fitCanvas(): void {
     if (!canvasEl.width || !canvasEl.height) return;
     const s = getComputedStyle(paneEl);
-    const pw =
-      paneEl.clientWidth -
-      parseFloat(s.paddingLeft) -
-      parseFloat(s.paddingRight);
-    const ph =
-      paneEl.clientHeight -
-      parseFloat(s.paddingTop) -
-      parseFloat(s.paddingBottom);
+    const pw = paneEl.clientWidth - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight);
+    const ph = paneEl.clientHeight - parseFloat(s.paddingTop) - parseFloat(s.paddingBottom);
     const scale = Math.min(pw / canvasEl.width, ph / canvasEl.height);
-    canvasEl.style.width = Math.round(canvasEl.width * scale) + "px";
-    canvasEl.style.height = Math.round(canvasEl.height * scale) + "px";
+    canvasEl.style.width = Math.round(canvasEl.width * scale) + 'px';
+    canvasEl.style.height = Math.round(canvasEl.height * scale) + 'px';
   }
 
   function showErrorImpl(msg: string, immediate = true): void {
@@ -81,9 +75,7 @@
     // the first rAF queues a paint, and the second fires only after that paint has completed.
     // without this, the main thread gets locked by the render work before the overlay ever shows.
     await tick();
-    await new Promise((r) =>
-      requestAnimationFrame(() => requestAnimationFrame(r)),
-    );
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
     // Capture prop values after flush so we render a consistent snapshot.
     // Also bail if a newer render has already started.
     if (gen !== renderGen) {
@@ -95,12 +87,7 @@
     try {
       const seedNum = parseInt(renderSeed, 10) >>> 0;
       const rand = mulberry32(seedNum);
-      const image = new GlitchBuffer(
-        originalBuffer.slice(),
-        imgWidth,
-        imgHeight,
-        rand,
-      );
+      const image = new GlitchBuffer(originalBuffer.slice(), imgWidth, imgHeight, rand);
       await runGlitchsp(renderScript, image, rand);
       if (gen !== renderGen) return;
       const rgba = glitchToRgba(image.data, image.width, image.height);
@@ -113,8 +100,8 @@
         clearTimeout(errorTimer);
         errorTimer = null;
       }
-      errorText = "";
-      history.replaceState(null, "", stateSearch(renderSeed, renderScript));
+      errorText = '';
+      history.replaceState(null, '', stateSearch(renderSeed, renderScript));
     } catch (e) {
       if (gen !== renderGen) return;
       showErrorImpl(String(e), immediate);
@@ -136,7 +123,7 @@
         originalBuffer = rgbaToGlitch(
           ctx.getImageData(0, 0, imgWidth, imgHeight).data,
           imgWidth,
-          imgHeight,
+          imgHeight
         );
         URL.revokeObjectURL(url);
         fitCanvas();
@@ -144,7 +131,7 @@
       };
       img.onerror = () => {
         URL.revokeObjectURL(url);
-        reject(new Error("failed to load image"));
+        reject(new Error('failed to load image'));
       };
       img.src = url;
     });
@@ -153,10 +140,8 @@
   function originalToPngBlob(): Promise<Blob> {
     const rgba = glitchToRgba(originalBuffer!, imgWidth, imgHeight);
     const off = new OffscreenCanvas(imgWidth, imgHeight);
-    off
-      .getContext("2d")!
-      .putImageData(new ImageData(rgba, imgWidth, imgHeight), 0, 0);
-    return off.convertToBlob({ type: "image/png" });
+    off.getContext('2d')!.putImageData(new ImageData(rgba, imgWidth, imgHeight), 0, 0);
+    return off.convertToBlob({ type: 'image/png' });
   }
 
   // Re-run (debounced) when script changes
@@ -180,7 +165,7 @@
   });
 
   onMount(() => {
-    ctx = canvasEl.getContext("2d")!;
+    ctx = canvasEl.getContext('2d')!;
     const ro = new ResizeObserver(fitCanvas);
     ro.observe(paneEl);
 
@@ -212,14 +197,7 @@
     <span id="preview-label">preview</span>
     <div id="canvas-frame">
       <canvas id="canvas" bind:this={canvasEl}></canvas>
-      <div
-        id="loading"
-        class:visible={loading}
-        role="status"
-        aria-live="polite"
-      >
-        rendering…
-      </div>
+      <div id="loading" class:visible={loading} role="status" aria-live="polite">rendering…</div>
     </div>
   </div>
 </div>

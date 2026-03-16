@@ -16,17 +16,14 @@
   {#snippet msg()}save current script as a preset before loading?{/snippet}
   {#snippet body()}
     <Field label="name" for="preset-confirm-name">
-      <input
-        id="preset-confirm-name"
-        type="text"
-        spellcheck="false"
-        bind:value={name}
-      />
+      <input id="preset-confirm-name" type="text" spellcheck="false" bind:value={name} />
     </Field>
   {/snippet}
   {#snippet buttons({ done })}
     <!-- svelte-ignore a11y_autofocus -->
-    <button autofocus type="button" onclick={() => done({ name: name.trim() })}>save &amp; load</button>
+    <button autofocus type="button" onclick={() => done({ name: name.trim() })}
+      >save &amp; load</button
+    >
     <div class="spacer"></div>
     <button type="button" onclick={() => done('discard')}>discard</button>
     <button type="button" onclick={() => done(null)}>cancel</button>
@@ -34,5 +31,7 @@
 </Prompt>
 
 <style>
-  .spacer { flex: 1; }
+  .spacer {
+    flex: 1;
+  }
 </style>

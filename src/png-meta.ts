@@ -4,28 +4,30 @@ import encodeChunks from 'png-chunks-encode';
 
 export interface PngMeta {
   seed?: string;
-  script?: string;   // base64-encoded
-  original?: Blob;   // PNG blob of original image
+  script?: string; // base64-encoded
+  original?: Blob; // PNG blob of original image
 }
 
 export async function writePngMeta(
   outputBlob: Blob,
   seed: string,
   b64script: string,
-  originalBlob: Blob,
+  originalBlob: Blob
 ): Promise<Blob> {
   const [outputBuf, origBuf] = await Promise.all([
     outputBlob.arrayBuffer(),
     originalBlob.arrayBuffer(),
   ]);
   const chunks = extractChunks(new Uint8Array(outputBuf));
-  const iend = chunks.findIndex(c => c.name === 'IEND');
+  const iend = chunks.findIndex((c) => c.name === 'IEND');
   const insert = iend >= 0 ? iend : chunks.length;
   const originalBytes = new Uint8Array(origBuf);
-  chunks.splice(insert, 0,
+  chunks.splice(
+    insert,
+    0,
     text.encode('glitchbuf:seed', seed),
     text.encode('glitchbuf:script', b64script),
-    { name: 'gbOR', data: originalBytes },
+    { name: 'gbOR', data: originalBytes }
   );
   return new Blob([encodeChunks(chunks)], { type: 'image/png' });
 }

@@ -1,9 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { setAppContext, type AppCtx } from './context';
-  import { initEditor, getScript as getEditorScript, setScript as setEditorScript } from './editor';
-  import EffectModal from './components/editor/EffectModal.svelte';
-  import type { EffectModalApi } from './components/editor/types';
+  import Editor, { type EditorApi } from './components/editor/Editor.svelte';
   import { writePngMeta } from './png-meta';
   import { b64encode, b64decode, stateSearch } from './utils';
   import { openHelpDialog } from './components/dialogs';
@@ -28,13 +26,13 @@
 
   // Preview API registered via onready
   let preview: PreviewApi | null = null;
-  let modalApi: EffectModalApi | null = null;
+  let editorApi: EditorApi | null = null;
 
   // ── Context methods ───────────────────────────────────────────────────────────
 
   function setScript(code: string): void {
     state.script = code;
-    setEditorScript(code);
+    editorApi?.setScript(code);
   }
 
   function pushHistory(): void {
@@ -71,18 +69,6 @@
   // ── Lifecycle ─────────────────────────────────────────────────────────────────
 
   onMount(() => {
-    initEditor(
-      document.getElementById('editor')!,
-      () => {
-        state.script = getEditorScript();
-      },
-      () => {
-        ctx.pushHistory();
-      },
-      modalApi ?? undefined
-    );
-    setEditorScript(state.script);
-
     const onPopstate = () => {
       const params = new URLSearchParams(location.search);
       const seed = params.get('seed');
@@ -91,7 +77,7 @@
       if (script !== null) {
         const decoded = b64decode(script);
         state.script = decoded;
-        setEditorScript(decoded);
+        editorApi?.setScript(decoded);
       }
       preview?.runImage(true);
     };
@@ -109,7 +95,16 @@
   <PresetsRow />
   <Field label="script" for="editor" class="script-field">
     <div class="textarea-wrap">
-      <div id="editor"></div>
+      <Editor
+        script={state.script}
+        onchange={(s) => {
+          state.script = s;
+        }}
+        oncommit={ctx.pushHistory}
+        onready={(api) => {
+          editorApi = api;
+        }}
+      />
     </div>
   </Field>
   <div class="bottom-bar">
@@ -124,11 +119,6 @@
     }}
   />
 </div>
-<EffectModal
-  onready={(api) => {
-    modalApi = api;
-  }}
-/>
 
 <style>
   /* .script-field and .textarea-wrap are on/inside Field's element, needs :global() */

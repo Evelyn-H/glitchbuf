@@ -12,7 +12,11 @@
     try {
       const buf = await file.arrayBuffer();
       let meta: PngMeta = {};
-      try { meta = readPngMeta(buf); } catch { /* not a png or no metadata */ }
+      try {
+        meta = readPngMeta(buf);
+      } catch {
+        /* not a png or no metadata */
+      }
 
       try {
         await ctx.loadImage(meta.original ?? file);

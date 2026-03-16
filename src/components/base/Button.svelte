@@ -1,9 +1,9 @@
 <script lang="ts">
-  import type { Snippet } from "svelte";
+  import type { Snippet } from 'svelte';
 
   let {
     children,
-    type = "button",
+    type = 'button',
     ...rest
   }: {
     children: Snippet;

@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { getAppContext } from "../context";
-  import Field from "./base/Field.svelte";
-  import Button from "./base/Button.svelte";
+  import { getAppContext } from '../context';
+  import Field from './base/Field.svelte';
+  import Button from './base/Button.svelte';
 
   const ctx = getAppContext();
 
@@ -13,12 +13,7 @@
 
 <div class="seed-row">
   <Field label="seed" for="seed">
-    <input
-      id="seed"
-      type="text"
-      spellcheck="false"
-      bind:value={ctx.state.seed}
-    />
+    <input id="seed" type="text" spellcheck="false" bind:value={ctx.state.seed} />
   </Field>
   <Button onclick={randomise}>randomise</Button>
 </div>

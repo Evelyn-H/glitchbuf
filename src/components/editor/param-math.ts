@@ -17,8 +17,8 @@ export function makeParamScale(param: ParamDef): ParamScale {
   const logRange = isLog ? sLog(param.max) - logMin : 0;
   return {
     isLog,
-    toSlider: (v) => isLog ? 100 * (sLog(v) - logMin) / logRange : v,
-    fromSlider: (t) => isLog ? sExp(logMin + (t / 100) * logRange) : t,
+    toSlider: (v) => (isLog ? (100 * (sLog(v) - logMin)) / logRange : v),
+    fromSlider: (t) => (isLog ? sExp(logMin + (t / 100) * logRange) : t),
     fmt: (v) => {
       if (isLog) return String(parseFloat(v.toPrecision(3)));
       const dec = param.step !== undefined ? (String(param.step).split('.')[1] ?? '').length : 0;

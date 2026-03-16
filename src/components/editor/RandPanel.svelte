@@ -1,15 +1,15 @@
 <script lang="ts">
-  import type { ParamDef } from "../../ops";
-  import ParamSlider from "./ParamSlider.svelte";
+  import type { ParamDef } from '../../ops';
+  import ParamSlider from './ParamSlider.svelte';
 
   let {
     param,
-    fn = $bindable("rand" as "rand" | "randn"),
+    fn = $bindable('rand' as 'rand' | 'randn'),
     a = $bindable(),
     b = $bindable(),
   }: {
     param: ParamDef;
-    fn: "rand" | "randn";
+    fn: 'rand' | 'randn';
     a: number;
     b: number;
   } = $props();
@@ -25,10 +25,10 @@
     default: 0,
   });
 
-  function setFn(newFn: "rand" | "randn") {
+  function setFn(newFn: 'rand' | 'randn') {
     if (newFn === fn) return;
     fn = newFn;
-    if (newFn === "rand") {
+    if (newFn === 'rand') {
       a = param.min;
       b = param.max;
     } else {
@@ -44,8 +44,8 @@
       type="radio"
       name={groupId}
       value="rand"
-      checked={fn === "rand"}
-      onchange={() => setFn("rand")}
+      checked={fn === 'rand'}
+      onchange={() => setFn('rand')}
     />
     rand (uniform)
   </label>
@@ -54,14 +54,14 @@
       type="radio"
       name={groupId}
       value="randn"
-      checked={fn === "randn"}
-      onchange={() => setFn("randn")}
+      checked={fn === 'randn'}
+      onchange={() => setFn('randn')}
     />
     randn (gaussian)
   </label>
 </div>
 <div class="param-rand-inputs">
-  {#if fn === "rand"}
+  {#if fn === 'rand'}
     <div class="param-rand-row">
       <span>min</span>
       <ParamSlider {param} bind:value={a} />
@@ -115,11 +115,11 @@
   }
 
   /* ParamSlider renders these inputs, so :global() is needed */
-  .param-rand-row :global(input[type="range"]) {
+  .param-rand-row :global(input[type='range']) {
     flex: 1;
     min-width: 0;
   }
-  .param-rand-row :global(input[type="number"]) {
+  .param-rand-row :global(input[type='number']) {
     width: 5rem;
     flex-shrink: 0;
   }

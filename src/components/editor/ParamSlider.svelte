@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { ParamDef } from "../../ops";
-  import { makeParamScale } from "./param-math";
+  import type { ParamDef } from '../../ops';
+  import { makeParamScale } from './param-math';
 
   let {
     param,

@@ -1,10 +1,10 @@
 <script lang="ts">
-  import type { Snippet } from "svelte";
+  import type { Snippet } from 'svelte';
 
   let {
     label,
     for: labelFor,
-    class: cls = "",
+    class: cls = '',
     children,
     ...rest
   }: {
@@ -16,7 +16,7 @@
   } = $props();
 </script>
 
-<div class={["field", cls].filter(Boolean).join(" ")} {...rest}>
+<div class={['field', cls].filter(Boolean).join(' ')} {...rest}>
   {#if label}
     <label for={labelFor}>{label}</label>
   {/if}
@@ -36,7 +36,7 @@
   }
 
   /* inputs in children snippets aren't scoped to this component, so :global() is needed */
-  .field :global(input[type="text"]) {
+  .field :global(input[type='text']) {
     width: 100%;
   }
 </style>

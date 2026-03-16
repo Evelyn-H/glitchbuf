@@ -4,7 +4,13 @@
 
   type Ctx = { done: (result: unknown) => void };
 
-  let { msg, body, buttons: renderButtons, onclose, ...rest }: {
+  let {
+    msg,
+    body,
+    buttons: renderButtons,
+    onclose,
+    ...rest
+  }: {
     msg?: Snippet;
     body?: Snippet<[Ctx]>;
     buttons: Snippet<[Ctx]>;
@@ -26,5 +32,7 @@
 </Dialog>
 
 <style>
-  .msg { margin: 0 0 12px; }
+  .msg {
+    margin: 0 0 12px;
+  }
 </style>

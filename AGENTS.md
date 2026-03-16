@@ -28,12 +28,12 @@ glitchsp should feel like a natural fit for the domain: audio-inspired semantics
 ```
 index.html                          — Vite entry point; mounts App.svelte
 styles/style.css                    — dark-mode CSS vars, layout, responsive breakpoints
-styles/editor.css                   — editor-specific styles (tokens, drag handles, dialogs)
 src/App.svelte                      — root component; global state, context setup, layout
 src/effects.ts                      — IGlitchBuffer interface, GlitchBuffer class (all ops), rgbaToGlitch/glitchToRgba
 src/ops.ts                          — OpDef/OPS/OP_MAP: name, desc, ParamDef[], invoke binding for every effect
 src/glitchsp.ts                     — PRNG, tokenizer, parser, GlitchEnv, evaluate, makeGlitchEnv, runGlitchsp, splitIntoBlocks
-src/editor.ts                       — display tokenizer, syntax highlighting, drag-and-drop, getScript/setScript/initEditor
+src/editor.ts                       — pure utility functions: tokenizeForDisplay, findExprBounds, findParamAtOffset,
+                                      selectionCharOffsets, setCaretOffset, getEditText, placeCaretAtEnd/AtPoint, sLog/sExp
 src/png-meta.ts                     — writePngMeta/readPngMeta: embed/extract seed, script, original image in PNG chunks
 src/context.ts                      — AppCtx Svelte context (state + methods shared across components)
 src/presets.ts                      — built-in preset gallery
@@ -45,7 +45,15 @@ src/components/FileInput.svelte     — image upload, PNG metadata extraction
 src/components/PresetsRow.svelte    — preset picker with save/load/delete
 src/components/base/                — Button, Dialog, Field, Prompt primitives
 src/components/dialogs/             — HelpDialog, SavePresetDialog, DeletePresetDialog, PresetConfirmDialog
-src/components/editor/              — EffectModal, ParamRow, ParamSlider, RandPanel, param-math.ts, types.ts
+src/components/editor/Editor.svelte — top-level editor; owns lines[] state, drag, raw mode; exposes EditorApi via onready
+src/components/editor/EditorLine.svelte — single block row; display/edit toggle via editState enum, keyboard handling, drag handle, wrap/delete buttons
+src/components/editor/LineDisplay.svelte — tokenized read-only block view; number scrubbing, effect badge clicks
+src/components/editor/EffectModal.svelte — modal for adding/editing/wrapping effect expressions
+src/components/editor/ParamRow.svelte   — single parameter row within EffectModal
+src/components/editor/ParamSlider.svelte — scrub slider for numeric params
+src/components/editor/RandPanel.svelte  — randomize panel
+src/components/editor/param-math.ts    — param value math helpers
+src/components/editor/types.ts         — shared editor component types (EffectModalApi, etc.)
 dist/                               — build output (vite)
 README.md                           — project intro, setup/build instructions, links to help docs
 HELP.md                             — user guide: loading images, seed, run/new buttons, editor shortcuts
@@ -60,9 +68,11 @@ AGENTS.md                           — this file
 npm run dev     # vite dev server with hot reload
 npm run build   # svelte-check + vite build → dist/
 npm run preview # serve dist/ locally
+npm run format  # prettier --write src
+npm run lint    # eslint src
 ```
 
-vite bundles everything via `@sveltejs/vite-plugin-svelte`. open `dist/index.html` directly or use `npm run preview`.
+always run `npm run format && npm run lint && npm run build` together when verifying changes. vite bundles everything via `@sveltejs/vite-plugin-svelte`. open `dist/index.html` directly or use `npm run preview`.
 
 ## adding a new op
 
