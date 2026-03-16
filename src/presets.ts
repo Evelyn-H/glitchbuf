@@ -205,8 +205,8 @@ repeat 3 (echo 20 -12)
     name: 'infinite corridor',
     code: `\
 luma (mix 0.5 (do (gamma 2) (defocus 10)))
-tunnel 10 0.85 0.5 12
-vignette 1 1.3 1.2
+vignette 1 1.5
+tunnel 10 0.85 0.8 12
 `,
   },
   {
