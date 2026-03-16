@@ -50,6 +50,20 @@
 
   type EditState = 'display' | 'entering' | 'editing' | 'deleting';
   let editState = $state<EditState>('display');
+  const isCommented = $derived(
+    block
+      .split('\n')
+      .filter((l) => l.trim())
+      .every((l) => /^#/.test(l))
+  );
+
+  function toggleBlockComment(text: string): string {
+    const lines = text.split('\n');
+    const allCommented = lines.filter((l) => l.trim()).every((l) => /^#/.test(l));
+    return lines
+      .map((l) => (l.trim() ? (allCommented ? l.replace(/^#\s?/, '') : '# ' + l) : l))
+      .join('\n');
+  }
   let editEl = $state<HTMLDivElement | undefined>(undefined);
   let lineEl = $state<HTMLDivElement | undefined>(undefined);
 
@@ -117,6 +131,10 @@
     });
   }
 
+  function handleToggleComment(): void {
+    onblockchange(toggleBlockComment(block), true);
+  }
+
   function handleDelete(): void {
     editState = 'deleting';
     ondelete(-1);
@@ -180,8 +198,9 @@
       e.preventDefault();
       const text = getEditText(editEl!);
       const lines = text.split('\n');
+      const allCommented = lines.filter((l) => l.trim()).every((l) => /^#/.test(l));
 
-      const { start: startChar, end: endChar } = selectionCharOffsets(editEl!);
+      const { start: startChar } = selectionCharOffsets(editEl!);
       let cursorLine = 0,
         cursorCol = 0,
         pos = 0;
@@ -195,34 +214,12 @@
         pos = lineEnd + 1;
       }
 
-      let firstLine = 0,
-        lastLine = lines.length - 1;
-      pos = 0;
-      let foundFirst = false;
-      for (let li = 0; li < lines.length; li++) {
-        const lineEnd = pos + lines[li].length;
-        if (!foundFirst && startChar <= lineEnd) {
-          firstLine = li;
-          foundFirst = true;
-        }
-        if (endChar <= lineEnd) {
-          lastLine = li;
-          break;
-        }
-        if (li === lines.length - 1) lastLine = li;
-        pos = lineEnd + 1;
-      }
-
-      const allCommented = lines.slice(firstLine, lastLine + 1).every((l) => /^#/.test(l));
-      const newLines = lines.map((l, idx) => {
-        if (idx < firstLine || idx > lastLine) return l;
-        return allCommented ? l.replace(/^#\s?/, '') : '# ' + l;
-      });
-      const newText = newLines.join('\n');
+      const newText = toggleBlockComment(text);
+      const newLines = newText.split('\n');
       editEl!.textContent = newText;
 
       let adjustedCol = cursorCol;
-      if (cursorLine >= firstLine && cursorLine <= lastLine) {
+      if (lines[cursorLine]?.trim()) {
         if (allCommented) {
           const removed = (lines[cursorLine].match(/^#\s?/) ?? [''])[0].length;
           adjustedCol = Math.max(0, cursorCol - removed);
@@ -245,12 +242,12 @@
   class="editor-line"
   class:is-dragging={isDragging}
   class:drag-over={isDragOver}
+  class:is-commented={isCommented}
   data-index={lineIndex}
   bind:this={lineEl}
   onfocusout={handleFocusOut}
 >
-  <button
-    type="button"
+  <LineButton
     class="drag-handle"
     aria-hidden="true"
     onpointerdown={(e) => {
@@ -259,8 +256,14 @@
       ondragstart(lineIndex);
     }}
     onpointermove={(e) => ondragmove(e)}
-    onpointerup={() => ondragend()}>⠿</button
+    onpointerup={() => ondragend()}
   >
+    <svg viewBox="0 0 6 10" width="6" height="10" fill="currentColor" aria-hidden="true">
+      <rect x="0" y="0" width="2" height="2" /><rect x="4" y="0" width="2" height="2" />
+      <rect x="0" y="4" width="2" height="2" /><rect x="4" y="4" width="2" height="2" />
+      <rect x="0" y="8" width="2" height="2" /><rect x="4" y="8" width="2" height="2" />
+    </svg>
+  </LineButton>
 
   <LineButton class="wrap-btn" title="wrap in a special form" onclick={handleWrap}>()</LineButton>
 
@@ -288,6 +291,29 @@
     {/if}
   </div>
 
+  <LineButton
+    class="comment-btn"
+    title={isCommented ? 'uncomment' : 'comment out'}
+    onclick={handleToggleComment}
+  >
+    {#if isCommented}
+      <svg
+        viewBox="0 0 8 8"
+        width="8"
+        height="8"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1"
+        aria-hidden="true"
+      >
+        <circle cx="4" cy="4" r="3" />
+      </svg>
+    {:else}
+      <svg viewBox="0 0 8 8" width="8" height="8" fill="currentColor" aria-hidden="true">
+        <circle cx="4" cy="4" r="4" />
+      </svg>
+    {/if}
+  </LineButton>
   <LineButton class="delete-line-btn" title="remove this block" onclick={handleDelete}>×</LineButton
   >
 </div>
@@ -295,8 +321,9 @@
 <style>
   .editor-line {
     display: flex;
-    align-items: flex-start;
+    align-items: baseline;
     gap: 4px;
+    padding: 2px 0;
   }
 
   .editor-line.is-dragging {
@@ -307,29 +334,19 @@
     border-top: 2px solid var(--fg);
   }
 
-  .drag-handle {
-    background: none;
-    border: none;
+  .editor-line :global(.drag-handle) {
     cursor: grab;
-    color: var(--fg-dim);
-    padding: 4px 2px;
-    user-select: none;
     touch-action: none;
-    flex-shrink: 0;
     opacity: 0.4;
-  }
-
-  .editor-line:hover .drag-handle {
-    opacity: 1;
   }
 
   .line-wrap {
     flex: 1;
     min-width: 0;
+    padding: 0 2px;
   }
 
   .line-edit {
-    line-height: 1.5;
     white-space: pre-wrap;
     word-break: break-all;
     min-height: 1.5em;
@@ -338,6 +355,14 @@
 
   .editor-line :global(.wrap-btn) {
     opacity: 0.3;
+  }
+
+  .editor-line :global(.comment-btn) {
+    opacity: 0;
+  }
+
+  .editor-line.is-commented :global(.comment-btn) {
+    opacity: 0.7;
   }
 
   .editor-line :global(.delete-line-btn) {

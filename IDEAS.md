@@ -26,7 +26,6 @@ totally out there
   - better error handling in the parsing
   - perhaps an op that allows the user to do infix mathametical operations? (like (calc 6 - (rand)\*3), instead of (- 6 (\* (rand) 3)))
   - scramble function - randomizes the current script layers
-  - toggle layer function - switches the layer effect on/off by double-clicking the handle, maybe also a global on-off so that one can admire their destruction
   - for wrapped effects, add a `...` button after the effect that lets you add another effect wrapped in a `do` block. this would make it easier to have chains of effects in a wrapped block, which is often desireable.
   - auto warning/help when rendering is slow that lets the user easily insert a rescale to make the image smaller
 
@@ -40,7 +39,6 @@ totally out there
   - tile effects editor at the bottom of editor rather than modal (keep as modal for mobile?)
   - split copy pasted code into blocks if needed
   - color param type with radio buttons
-  - line eye
 
 ## bugs
 

@@ -21,14 +21,18 @@
     onready?: (api: EditorApi) => void;
   } = $props();
 
-  function initLines(s: string): string[] {
-    const blocks = splitIntoBlocks(s).filter((b) => b.trim().length > 0);
-    return blocks.length > 0 ? blocks : [''];
+  type Line = { id: number; block: string };
+  let nextId = 0;
+
+  function toLines(code: string): Line[] {
+    const blocks = splitIntoBlocks(code).filter((b) => b.trim().length > 0);
+    const result = blocks.length > 0 ? blocks : [''];
+    return result.map((block) => ({ id: nextId++, block }));
   }
 
   // script is intentionally used only as the initial value; external updates go through editorApi.setScript()
   // svelte-ignore state_referenced_locally
-  let lines = $state<string[]>(initLines(script));
+  let lines = $state<Line[]>(toLines(script));
   let rawMode = $state(false);
   let rawScript = $state('');
   let dragIndex = $state<number | null>(null);
@@ -37,7 +41,7 @@
   let modal = $state<EffectModalApi | null>(null);
 
   function setScript(code: string): void {
-    lines = initLines(code);
+    lines = toLines(code);
     rawMode = false;
   }
 
@@ -50,36 +54,36 @@
     });
   }
 
-  function notify(newLines: string[], commit: boolean): void {
+  function notify(newLines: Line[], commit: boolean): void {
     lines = newLines;
-    onchange(newLines.join('\n'));
+    onchange(newLines.map((l) => l.block).join('\n'));
     if (commit) oncommit();
   }
 
   function handleBlockChange(idx: number, newBlock: string, commit: boolean): void {
     const newLines = lines.slice();
-    newLines[idx] = newBlock;
+    newLines[idx] = { ...newLines[idx], block: newBlock };
     notify(newLines, commit);
   }
 
   function handleDelete(idx: number, focusDir: number): void {
     const newLines = lines.slice();
     newLines.splice(idx, 1);
-    if (newLines.length === 0) newLines.push('');
+    if (newLines.length === 0) newLines.push({ id: nextId++, block: '' });
     notify(newLines, true);
     focusLine(Math.max(0, Math.min(idx + focusDir, newLines.length - 1)));
   }
 
   function handleReplaceBlocks(idx: number, blocks: string[]): void {
     const newLines = lines.slice();
-    newLines.splice(idx, 1, ...blocks);
+    newLines.splice(idx, 1, ...blocks.map((block) => ({ id: nextId++, block })));
     notify(newLines, true);
   }
 
   function handleInsertAfter(idx: number, text: string): void {
     const newLines = lines.slice();
-    newLines[idx] = text;
-    newLines.splice(idx + 1, 0, '');
+    newLines[idx] = { ...newLines[idx], block: text };
+    newLines.splice(idx + 1, 0, { id: nextId++, block: '' });
     notify(newLines, true);
     focusLine(idx + 1);
   }
@@ -89,7 +93,7 @@
   }
 
   function handleEnterRaw(): void {
-    rawScript = lines.join('\n');
+    rawScript = lines.map((l) => l.block).join('\n');
     rawMode = true;
     tick().then(() => {
       const ta = editorEl!.querySelector<HTMLTextAreaElement>('.raw-edit');
@@ -137,7 +141,7 @@
     modal?.open({
       kind: 'add',
       onApply: (block) => {
-        notify([...lines, block], true);
+        notify([...lines, { id: nextId++, block }], true);
       },
     });
   }
@@ -159,9 +163,9 @@
       }}
     ></textarea>
   {:else}
-    {#each lines as block, i (i)}
+    {#each lines as line, i (line.id)}
       <EditorLine
-        {block}
+        block={line.block}
         lineIndex={i}
         linesCount={lines.length}
         isDragging={dragIndex === i}
@@ -204,6 +208,7 @@
     background: var(--bg-input);
     border: 1px solid var(--border);
     padding: 4px;
+    line-height: 1.8;
   }
 
   .drop-sentinel {

@@ -1,25 +1,17 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import type { HTMLButtonAttributes } from 'svelte/elements';
 
   let {
-    title,
     class: className = '',
-    onclick,
+    onpointerdown = (e: PointerEvent) => e.preventDefault(),
     children,
-  }: {
-    title: string;
-    class?: string;
-    onclick: () => void;
-    children: Snippet;
-  } = $props();
+    ...rest
+  }: Omit<HTMLButtonAttributes, 'type'> & { children: Snippet } = $props();
 </script>
 
-<button
-  type="button"
-  class="line-btn {className}"
-  {title}
-  onpointerdown={(e) => e.preventDefault()}
-  {onclick}>{@render children()}</button
+<button type="button" class="line-btn {className}" {onpointerdown} {...rest}
+  >{@render children()}</button
 >
 
 <style>
@@ -30,8 +22,8 @@
     cursor: pointer;
     font-size: 0.8rem;
     line-height: 1;
-    width: 1.4em;
-    height: 1.4em;
+    width: 1.2rem;
+    height: 1.2rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;

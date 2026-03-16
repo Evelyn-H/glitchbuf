@@ -157,7 +157,6 @@
 
 <style>
   .line-display {
-    line-height: 1.5;
     white-space: pre-wrap;
     word-break: break-all;
     min-height: 1.5em;
