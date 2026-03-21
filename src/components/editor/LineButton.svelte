@@ -4,15 +4,12 @@
 
   let {
     class: className = '',
-    onpointerdown = (e: PointerEvent) => e.preventDefault(),
     children,
     ...rest
   }: Omit<HTMLButtonAttributes, 'type'> & { children: Snippet } = $props();
 </script>
 
-<button type="button" class="line-btn {className}" {onpointerdown} {...rest}
-  >{@render children()}</button
->
+<button type="button" class="line-btn {className}" {...rest}>{@render children()}</button>
 
 <style>
   .line-btn {
@@ -22,8 +19,8 @@
     cursor: pointer;
     font-size: 0.8rem;
     line-height: 1;
-    width: 1.2rem;
-    height: 1.2rem;
+    width: 1.5rem;
+    height: 1.5rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;

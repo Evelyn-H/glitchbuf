@@ -187,8 +187,12 @@
       data-index={lines.length}
       class:drag-over={dropIndex === lines.length && dragIndex !== null}
     ></div>
-    <button type="button" class="add-effect-btn" title="add a new effect" onclick={handleAdd}
-      >+</button
+    <button
+      type="button"
+      class="add-effect-btn"
+      title="add a new effect"
+      aria-label="add a new effect"
+      onclick={handleAdd}>+</button
     >
   {/if}
 </div>

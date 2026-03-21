@@ -265,10 +265,14 @@ luma (do
     name: 'lava lamp',
     code: `\
 maxsize 1024
-defocus 40
-xor 64
+channel R (echo (randn 0 30) -12)
+channel B (do (reverse) (echo (randn 0 30) -12))
+channel G (transpose (echo (randn 20 20) -12))
+fold 4
+defocus 48
+xor 223
 saturate 2
-bandpass 1200 0.1
+bandpass 3000 0.1
 `,
   },
 ];

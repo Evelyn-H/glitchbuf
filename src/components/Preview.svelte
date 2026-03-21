@@ -196,7 +196,7 @@
   <div id="canvas-wrap">
     <span id="preview-label">preview</span>
     <div id="canvas-frame">
-      <canvas id="canvas" bind:this={canvasEl}></canvas>
+      <canvas id="canvas" bind:this={canvasEl} aria-label="glitch effect preview"></canvas>
       <div id="loading" class:visible={loading} role="status" aria-live="polite">rendering…</div>
     </div>
   </div>

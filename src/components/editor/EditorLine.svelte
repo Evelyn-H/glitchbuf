@@ -247,6 +247,8 @@
   bind:this={lineEl}
   onfocusout={handleFocusOut}
 >
+  <!-- pointercancel fires when the browser cancels the gesture (e.g. a scroll
+       container interferes). without it the drag state gets permanently stuck. -->
   <LineButton
     class="drag-handle"
     aria-hidden="true"
@@ -257,6 +259,7 @@
     }}
     onpointermove={(e) => ondragmove(e)}
     onpointerup={() => ondragend()}
+    onpointercancel={() => ondragend()}
   >
     <svg viewBox="0 0 6 10" width="6" height="10" fill="currentColor" aria-hidden="true">
       <rect x="0" y="0" width="2" height="2" /><rect x="4" y="0" width="2" height="2" />
@@ -265,7 +268,12 @@
     </svg>
   </LineButton>
 
-  <LineButton class="wrap-btn" title="wrap in a special form" onclick={handleWrap}>()</LineButton>
+  <LineButton
+    class="wrap-btn"
+    title="wrap in a special form"
+    aria-label="wrap in a special form"
+    onclick={handleWrap}>()</LineButton
+  >
 
   <div class="line-wrap">
     {#if editState === 'display'}
@@ -294,6 +302,7 @@
   <LineButton
     class="comment-btn"
     title={isCommented ? 'uncomment' : 'comment out'}
+    aria-label={isCommented ? 'uncomment' : 'comment out'}
     onclick={handleToggleComment}
   >
     {#if isCommented}
@@ -314,7 +323,11 @@
       </svg>
     {/if}
   </LineButton>
-  <LineButton class="delete-line-btn" title="remove this block" onclick={handleDelete}>×</LineButton
+  <LineButton
+    class="delete-line-btn"
+    title="remove this block"
+    aria-label="remove this block"
+    onclick={handleDelete}>×</LineButton
   >
 </div>
 
@@ -374,5 +387,17 @@
 
   .editor-line :global(.delete-line-btn) {
     opacity: 0;
+  }
+
+  /* on touch devices, always show action buttons since hover doesn't exist */
+  @media (hover: none) {
+    .editor-line :global(.wrap-btn),
+    .editor-line :global(.comment-btn),
+    .editor-line :global(.delete-line-btn) {
+      opacity: 0.4;
+    }
+    .editor-line.is-commented :global(.comment-btn) {
+      opacity: 0.8;
+    }
   }
 </style>

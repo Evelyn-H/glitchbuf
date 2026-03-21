@@ -123,6 +123,12 @@
     close();
   }
 
+  // timestamp of the last open() call, used to ignore the synthetic click that
+  // touch browsers fire ~0–300ms after pointerup. without this guard, tapping
+  // an effect badge opens the modal and the same tap's click event immediately
+  // closes it again (the dialog is modal so it receives the click).
+  let openTime = 0;
+
   function close() {
     isOpen = false;
     opts = null;
@@ -136,6 +142,7 @@
     else if (newOpts.kind === 'wrap') selectedOpName = wrapOps[0]?.name ?? '';
     paramValues = (currentMeta?.params ?? []).map(() => null);
     isOpen = true;
+    openTime = Date.now();
   }
 
   function onSelectChange() {
@@ -159,7 +166,9 @@
   onclose={close}
   class="effect-modal"
   onclick={(e: MouseEvent) => {
-    if (e.target === e.currentTarget) close();
+    // close on click in the dialog padding (backdrop). the 500ms guard rejects
+    // the synthetic click that arrives from the tap that opened the modal.
+    if (e.target === e.currentTarget && Date.now() - openTime > 500) close();
   }}
 >
   {#if opts && currentMeta}

@@ -116,17 +116,20 @@
     <span
       class="param-chevron"
       role="button"
-      tabindex="-1"
+      tabindex="0"
+      aria-expanded={expanded}
       onclick={ontoggle}
-      onkeydown={(e) => e.key === 'Enter' && ontoggle()}>{expanded ? '▼' : '▶'}</span
+      onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && ontoggle()}
+      >{expanded ? '▼' : '▶'}</span
     >
     <span
       class="param-label"
       title={param.desc}
       onclick={ontoggle}
       role="button"
-      tabindex="-1"
-      onkeydown={(e) => e.key === 'Enter' && ontoggle?.()}>{headerLabel}</span
+      tabindex="0"
+      aria-expanded={expanded}
+      onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && ontoggle?.()}>{headerLabel}</span
     >
     <div class="param-controls">
       {#if mode === 'slider' || mode === 'disabled'}
